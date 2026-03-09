@@ -1,0 +1,51 @@
+@import "tailwindcss";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Palette Warna */
+  --pajak-base: #0C4E8C;
+  --pajak-primary: #0C81E4;
+  --pajak-secondary: #11C4D4;
+  --pajak-tertiary: #4FE7AF;
+  --pajak-light: #F9F9F9;
+  --pajak-border: #EAEAEA;
+  --pajak-shadow: #C8C8C8;
+
+  /* Font Variables (dari layout.tsx) */
+  --font-coolvetica: 'Coolvetica', sans-serif;
+  --font-montserrat: 'Montserrat', sans-serif;
+}
+
+@layer base {
+  h1, h2, .font-title {
+    font-family: var(--font-coolvetica);
+  }
+  
+  body {
+    font-family: var(--font-montserrat);
+  }
+}
+
+/* CSS Slider Khusus */
+.custom-range-thumb::-webkit-slider-thumb {
+  @apply appearance-none w-6 h-6 bg-black border-4 border-white rounded-full cursor-pointer pointer-events-auto shadow-md;
+}
+
+.custom-range-thumb::-moz-range-thumb {
+  @apply w-6 h-6 bg-black border-4 border-white rounded-full cursor-pointer pointer-events-auto shadow-md;
+}
+
+/* Scrollbar tipis untuk Modal */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #EAEAEA;
+  border-radius: 10px;
+}
