@@ -1,20 +1,19 @@
 'use client';
 
-import { useState, KeyboardEvent, useMemo } from 'react';
+import { useState, KeyboardEvent, useMemo, useEffect } from 'react';
 import { Search, Filter, Plus, X, ChevronLeft, ChevronRight } from "lucide-react";
 import Navbar from "../components/Navbar";
 import FilterModal from "../components/FilterModal";
 import DecisionCard from "../components/DecisionCard";
-import dataPutusan from "../../data/hasil_ringkasan_pajak_saja.json"; 
 
 export default function DashboardPage() {
   const [activeKeywords, setActiveKeywords] = useState<string[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  
-  // State Pagination
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 6; // 3 baris x 2 kolom
+
+  // State untuk data dari PostgreSQL
+  const [data, setData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   // State Filter Modal
   const [filters, setFilters] = useState({
@@ -26,51 +25,70 @@ export default function DashboardPage() {
     tahunPajak: [2006, 2024]
   });
 
-  // --- LOGIC FILTER UTAMA ---
-  const filteredData = useMemo(() => {
-    return dataPutusan.filter((item: any) => {
-      if (filters.status.length > 0 && !filters.status.includes(item.amar_putusan)) return false;
-      if (filters.jenisPajak.length > 0 && !filters.jenisPajak.includes(item.jenis_pajak)) return false;
-      if (filters.upayaHukum.length > 0 && !filters.upayaHukum.includes(item.upaya_hukum)) return false;
+  // State Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 8; 
 
-      const targetPengadilan = filters.pengadilan === 'MA' ? 'Mahkamah Agung' : 'Pengadilan Pajak';
-      if (item.pengadilan !== targetPengadilan) return false;
+  // --- LOGIC FETCH DATA DARI POSTGRESQL (VIA API) ---
+  const fetchPutusan = async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({
+        status: filters.status.join(','),
+        jenisPajak: filters.jenisPajak.join(','),
+        upayaHukum: filters.upayaHukum.join(','),
+        pengadilan: filters.pengadilan,
+        tahunPutusan: filters.tahunPutusan.join(','),
+        search: activeKeywords.join(' ')
+      });
 
-      if (item.tahun_putusan < filters.tahunPutusan[0] || item.tahun_putusan > filters.tahunPutusan[1]) return false;
-
-      if (activeKeywords.length > 0) {
-        return activeKeywords.every(kw => 
-          item.nomor_putusan_pp?.toLowerCase().includes(kw.toLowerCase()) || 
-          item.pemohon?.toLowerCase().includes(kw.toLowerCase()) ||
-          item.objek_sengketa?.toLowerCase().includes(kw.toLowerCase())
-        );
+      const res = await fetch('/api/putusan?' + params.toString(), {
+        cache: 'no-store'
+      });
+      const result = await res.json();
+      
+      if (Array.isArray(result)) {
+        setData(result);
+      } else {
+        setData([]);
       }
-      return true;
-    });
+    } catch (error) {
+      console.error("Gagal load data dari database:", error);
+      setData([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPutusan();
+    setCurrentPage(1); 
   }, [filters, activeKeywords]);
 
   // --- LOGIC PAGINATION ---
-  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+  const totalPages = Math.ceil(data.length / itemsPerPage);
   
   const currentData = useMemo(() => {
     const begin = (currentPage - 1) * itemsPerPage;
     const end = begin + itemsPerPage;
-    return filteredData.slice(begin, end);
-  }, [filteredData, currentPage]);
-
-  // Reset page ke 1 jika filter berubah
-  useMemo(() => {
-    setCurrentPage(1);
-  }, [filteredData.length]);
+    return data.slice(begin, end);
+  }, [data, currentPage]);
 
   // --- LOGIC STATISTIK ---
-  const stats = useMemo(() => ({
-    total: filteredData.length,
-    kabul: filteredData.filter(d => d.amar_putusan === 'Kabul').length,
-    menolak: filteredData.filter(d => d.amar_putusan === 'Tolak').length,
-    sebagian: filteredData.filter(d => d.amar_putusan === 'Mengabulkan Sebagian').length,
-    gugur: filteredData.filter(d => d.amar_putusan === 'Gugur').length,
-  }), [filteredData]);
+  const stats = useMemo(() => {
+    const rawData = Array.isArray(data) ? data : [];
+    const count = (val: string) => rawData.filter(item => item.amar_putusan === val).length;
+
+    return {
+      total: rawData.length,
+      kabulSeluruhnya: count('Mengabulkan Seluruhnya'),
+      kabulSebagian: count('Mengabulkan Sebagian'),
+      menolak: count('Menolak'),
+      tidakDiterima: count('Tidak Dapat Diterima'),
+      membatalkan: count('Membatalkan'),
+      lainLain: count('Lain-lain'),
+    };
+  }, [data]);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && inputValue.trim() !== "") {
@@ -82,7 +100,7 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--pajak-light)] pb-20">
+    <div className="min-h-screen bg-[var(--pajak-light)] pb-20 font-[family-name:var(--font-montserrat)]">
       <Navbar />
 
       <main className="max-w-[1440px] mx-auto p-8">
@@ -90,7 +108,7 @@ export default function DashboardPage() {
           <h1 className="text-4xl font-[family-name:var(--font-coolvetica)] text-[#000000] mb-2">
             Dashboard Analisis Putusan Pajak
           </h1>
-          <h3 className="text-lg font-[family-name:var(--font-montserrat)] text-[#333333]">
+          <h3 className="text-lg text-[#333333]">
             PPh 26, PPh Badan, Transfer Pricing, Tax Treaty (P3B) - Transaksi Lintas Negara
           </h3>
         </header>
@@ -113,7 +131,7 @@ export default function DashboardPage() {
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Cari Nomor Putusan, Pemohon, atau Objek Sengketa..." 
-              className="w-full pl-12 pr-4 py-2.5 bg-white border border-[var(--pajak-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--pajak-primary)] text-sm font-[family-name:var(--font-montserrat)] shadow-sm"
+              className="w-full pl-12 pr-4 py-2.5 bg-white border border-[var(--pajak-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--pajak-primary)] text-sm shadow-sm"
             />
           </div>
 
@@ -137,7 +155,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Tags */}
+        {/* Tags Section */}
         <div className="flex flex-wrap gap-2 mb-8 min-h-[40px]">
           {activeKeywords.length > 0 ? (
             activeKeywords.map((tag) => (
@@ -151,28 +169,44 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* KPI & Chart */}
-        <div className="grid grid-cols-12 gap-6 items-stretch mb-10">
-          <div className="col-span-9 grid grid-cols-5 gap-4">
+        {/* --- KPI & Chart Visualization Section --- */}
+        <div className="flex flex-col lg:flex-row gap-6 items-stretch mb-10">
+          {/* Enhanced KPI Cards Grid */}
+          <div className="flex-1 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 text-[var(--font-Montserrat)]">
             <KPICard label="Total Putusan" value={stats.total} color="var(--pajak-primary)" />
-            <KPICard label="Mengabulkan" value={stats.kabul} color="var(--pajak-base)" />
+            <KPICard label="Kabul Seluruh" value={stats.kabulSeluruhnya} color="#10B981" />
+            <KPICard label="Kabul Sebagian" value={stats.kabulSebagian} color="#F59E0B" />
             <KPICard label="Menolak" value={stats.menolak} color="#EF4444" />
-            <KPICard label="Sebagian" value={stats.sebagian} color="var(--pajak-tertiary)" />
-            <KPICard label="Gugur" value={stats.gugur} color="#F59E0B" />
+            <KPICard label="Tidak Diterima" value={stats.tidakDiterima} color="#6B7280" />
+            <KPICard label="Membatalkan" value={stats.membatalkan} color="#8B5CF6" />
+            <KPICard label="Lain-lain" value={stats.lainLain} color="#EC4899" />
           </div>
-          <div className="col-span-3 bg-white p-4 rounded-xl border border-[var(--pajak-border)] flex items-end gap-1.5 justify-center shadow-[0px_4px_10px_var(--pajak-shadow)]">
-             <div className="w-full bg-[var(--pajak-base)] rounded-t-sm transition-all duration-700" style={{ height: `${(stats.kabul/stats.total)*100 || 10}%` }}></div>
-             <div className="w-full bg-[var(--pajak-primary)] rounded-t-sm transition-all duration-700" style={{ height: `${(stats.menolak/stats.total)*100 || 10}%` }}></div>
-             <div className="w-full bg-[var(--pajak-secondary)] rounded-t-sm transition-all duration-700" style={{ height: `${(stats.sebagian/stats.total)*100 || 10}%` }}></div>
-             <div className="w-full bg-[var(--pajak-tertiary)] rounded-t-sm transition-all duration-700" style={{ height: `${(stats.gugur/stats.total)*100 || 10}%` }}></div>
-             <div className="w-full bg-blue-200 rounded-t-sm transition-all duration-700" style={{ height: '15%' }}></div>
+
+          {/* Interactive Chart with Hover Details */}
+          <div className="w-full lg:w-[320px] bg-white p-6 rounded-2xl border border-[var(--pajak-border)] shadow-[0px_4px_20px_var(--pajak-shadow)] flex items-end gap-2 justify-center relative group/chart">
+            <ChartBar value={stats.kabulSeluruhnya} total={stats.total} color="#10B981" label="Kabul Seluruh" />
+            <ChartBar value={stats.kabulSebagian} total={stats.total} color="#F59E0B" label="Kabul Sebagian" />
+            <ChartBar value={stats.menolak} total={stats.total} color="#EF4444" label="Menolak" />
+            <ChartBar value={stats.membatalkan} total={stats.total} color="#8B5CF6" label="Membatalkan" />
+            <ChartBar value={stats.lainLain} total={stats.total} color="#EC4899" label="Lain-lain" />
+            
+            <div className="absolute top-2 right-3 opacity-0 group-hover/chart:opacity-100 transition-opacity">
+              <span className="text-[9px] text-gray-400 font-bold uppercase italic">Hover bars for details</span>
+            </div>
           </div>
         </div>
 
-        {/* Data List - Grid 2 Kolom */}
+        {/* Data List */}
         <div className="space-y-4 mb-10">
-           <p className="text-sm font-bold text-gray-500">{filteredData.length} Putusan Ditemukan</p>
-           {currentData.length > 0 ? (
+           <p className="text-sm font-bold text-gray-500">{loading ? "Memuat data..." : `${data.length} Putusan Ditemukan`}</p>
+           
+           {loading ? (
+             <div className="grid grid-cols-2 gap-6 animate-pulse">
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="h-[165px] bg-gray-200 rounded-2xl"></div>
+                ))}
+             </div>
+           ) : currentData.length > 0 ? (
              <div className="grid grid-cols-2 gap-6">
                {currentData.map((putusan: any) => (
                  <DecisionCard key={putusan.id} data={putusan} />
@@ -180,18 +214,18 @@ export default function DashboardPage() {
              </div>
            ) : (
              <div className="bg-white p-20 rounded-2xl border border-dashed border-gray-300 text-center text-gray-400">
-                Tidak ada data yang sesuai dengan filter.
+                Tidak ada data yang sesuai dengan filter di database.
              </div>
            )}
         </div>
 
-        {/* Pagination Controls */}
-        {totalPages > 1 && (
-          <div className="flex justify-center items-center gap-4 mt-12 font-[family-name:var(--font-montserrat)] text-sm">
+        {/* Pagination */}
+        {!loading && totalPages > 1 && (
+          <div className="flex justify-center items-center gap-4 mt-12 text-sm">
             <button 
               onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
               disabled={currentPage === 1}
-              className="p-2 rounded-lg bg-gray-100 disabled:opacity-30 hover:bg-gray-200 transition-colors"
+              className="p-2 rounded-lg bg-gray-100 disabled:opacity-30 hover:bg-gray-200"
             >
               <ChevronLeft size={20} />
             </button>
@@ -205,24 +239,10 @@ export default function DashboardPage() {
             <button 
               onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
               disabled={currentPage === totalPages}
-              className="p-2 rounded-lg bg-gray-100 disabled:opacity-30 hover:bg-gray-200 transition-colors"
+              className="p-2 rounded-lg bg-gray-100 disabled:opacity-30 hover:bg-gray-200"
             >
               <ChevronRight size={20} />
             </button>
-
-            <div className="ml-6 flex items-center gap-3">
-              <span className="text-gray-500">Page</span>
-              <select 
-                value={currentPage}
-                onChange={(e) => setCurrentPage(Number(e.target.value))}
-                className="border border-gray-300 rounded-lg px-3 py-1 bg-white outline-none focus:ring-2 focus:ring-[var(--pajak-primary)]"
-              >
-                {[...Array(totalPages)].map((_, i) => (
-                  <option key={i+1} value={i+1}>{i+1}</option>
-                ))}
-              </select>
-              <span className="text-gray-500">of {totalPages}</span>
-            </div>
           </div>
         )}
 
@@ -236,12 +256,44 @@ export default function DashboardPage() {
   );
 }
 
+// --- Sub-components with Hover Effects ---
+
 const KPICard = ({ label, value, color }: { label: string; value: number; color: string }) => (
   <div 
-    className="bg-white p-5 rounded-xl border-l-[6px] shadow-[0px_4px_10px_var(--pajak-shadow)] flex flex-col justify-center"
+    className="bg-white p-6 rounded-2xl border-l-[8px] shadow-[0px_6px_15px_var(--pajak-shadow)] flex flex-col justify-center transition-transform hover:scale-105 duration-200"
     style={{ borderColor: color }}
   >
-    <p className="text-[10px] uppercase tracking-widest font-black text-gray-400 mb-1 leading-none">{label}</p>
-    <p className="text-4xl font-[family-name:var(--font-coolvetica)] text-gray-800 leading-none">{value}</p>
+    <p className="text-[10px] uppercase tracking-wider font-black text-gray-400 mb-2 leading-tight">
+      {label}
+    </p>
+    <p className="text-3xl font-[family-name:var(--font-coolvetica)] text-gray-800 leading-none">
+      {value.toLocaleString('id-ID')}
+    </p>
   </div>
 );
+
+const ChartBar = ({ value, total, color, label }: { value: number; total: number; color: string; label: string }) => {
+  const percentage = total > 0 ? (value / total) * 100 : 0;
+  const barHeight = Math.max(percentage, 8); // Minimum visibility
+
+  return (
+    <div className="relative flex-1 flex flex-col items-center group/bar h-full justify-end">
+      {/* Tooltip Content */}
+      <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-[10px] px-3 py-1.5 rounded-lg opacity-0 group-hover/bar:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-20 shadow-xl">
+        <div className="font-bold border-b border-gray-700 pb-1 mb-1">{label}</div>
+        <div>{value.toLocaleString('id-ID')} <span className="text-gray-400">({percentage.toFixed(1)}%)</span></div>
+        {/* Tooltip Arrow */}
+        <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-gray-900 rotate-45"></div>
+      </div>
+      
+      <div 
+        className="w-full rounded-t-md transition-all duration-700 ease-out hover:brightness-125 cursor-help"
+        style={{ 
+          height: `${barHeight}%`, 
+          backgroundColor: color,
+          boxShadow: `0 -4px 12px ${color}44` 
+        }}
+      ></div>
+    </div>
+  );
+};

@@ -16,10 +16,10 @@ const FilterModal = ({ isOpen, onClose, onApplyFilter }: FilterModalProps) => {
   const [tahunPajak, setTahunPajak] = useState([2006, 2024]);
 
   // State untuk Multi-Select Filter
-  const [selectedStatus, setSelectedStatus] = useState<string[]>(['Kabul']);
-  const [selectedPajak, setSelectedPajak] = useState<string[]>(['Tax Treaty']);
-  const [selectedUpaya, setSelectedUpaya] = useState<string[]>(['Banding']);
-  const [selectedPengadilan, setSelectedPengadilan] = useState('MA');
+  const [selectedStatus, setSelectedStatus] = useState<string[]>([]);
+  const [selectedPajak, setSelectedPajak] = useState<string[]>([]);
+  const [selectedUpaya, setSelectedUpaya] = useState<string[]>([]);
+  const [selectedPengadilan, setSelectedPengadilan] = useState('');
 
   // Logic Toggle Multi-Select
   const toggleFilter = (list: string[], setList: (v: string[]) => void, value: string) => {
@@ -67,7 +67,14 @@ const FilterModal = ({ isOpen, onClose, onApplyFilter }: FilterModalProps) => {
           <section>
             <h4 className="font-bold text-gray-800 mb-4 text-sm">Status Putusan</h4>
             <div className="flex flex-wrap gap-3">
-              {['Kabul', 'Tolak', 'Memperbaiki', 'Tidak dapat diterima', 'Lain-lain'].map(status => (
+              {[
+                'Mengabulkan Seluruhnya',
+                'Mengabulkan Sebagian',
+                'Menolak',
+                'Tidak Dapat Diterima',
+                'Membatalkan',
+                'Lain-lain'
+              ].map(status => (
                 <FilterChip 
                   key={status} 
                   label={status} 
