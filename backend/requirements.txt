@@ -1,0 +1,17 @@
+# Web Framework & Server
+fastapi
+uvicorn
+pydantic
+
+# Database
+psycopg2-binary
+pgvector
+
+# AI & Embeddings
+sentence-transformers
+langchain-ollama
+langchain-core
+
+# Utilities
+python-dotenv
+torch
