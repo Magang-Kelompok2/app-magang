@@ -4,14 +4,14 @@ import Link from 'next/link';
 
 const Navbar = () => {
   return (
-    <nav className="bg-(--pajak-base) px-40 py-4 flex justify-between items-center shadow-md">
+    <nav className="bg-(--pajak-base) px-20 py-4 flex justify-between items-center shadow-md">
       {/* Left Side: Logo & Title (Combined Image) */}
       <div className="flex items-center">
         <Link href="/">
           <Image 
             src="/Logo.svg" // Ganti dengan nama file logo kamu di folder public
             alt="Sistem Informasi Analisis Putusan Pajak" 
-            width={280}
+            width={250}
             height={50}
             className="object-contain"
           />

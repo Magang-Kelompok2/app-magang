@@ -159,9 +159,18 @@ export default function DashboardPage() {
         <div className="flex flex-wrap gap-2 mb-8 min-h-[40px]">
           {activeKeywords.length > 0 ? (
             activeKeywords.map((tag) => (
-              <div key={tag} className="flex items-center gap-2 bg-[var(--pajak-secondary)] text-[var(--pajak-base)] px-4 py-1.5 rounded-full text-xs font-bold border border-[var(--pajak-secondary)] border-opacity-30">
+              <div key={tag} className="flex items-center gap-2 bg-[#0C81E4]/20 text-[var(--pajak-primary)] px-4 py-1.5 rounded-full text-xs font-bold">
                 <span>{tag}</span>
-                <button onClick={() => setActiveKeywords(activeKeywords.filter(k => k !== tag))}><X size={14} strokeWidth={3} /></button>
+                <button 
+                  className="group p-1 rounded-md transition-colors hover:bg-red-50" 
+                  onClick={() => setActiveKeywords(activeKeywords.filter(k => k !== tag))}
+                >
+                  <X 
+                    size={14} 
+                    strokeWidth={3} 
+                    className="text-gray-400 group-hover:text-red-500 transition-colors" 
+                  />
+                </button>
               </div>
             ))
           ) : (

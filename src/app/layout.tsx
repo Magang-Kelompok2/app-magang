@@ -1,6 +1,15 @@
 import localFont from "next/font/local";
 import { Montserrat } from "next/font/google";
 import "./globals.css";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Sistem Analisis Putusan Pajak",
+  description: "Aplikasi Analisis Putusan Pajak Indonesia",
+  icons: {
+    icon: "/Logo_Alpha.svg",
+  },
+};
 
 // 1. Setup Montserrat dari Google Fonts
 const montserrat = Montserrat({
