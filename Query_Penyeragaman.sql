@@ -25,3 +25,6 @@ SET amar_putusan = CASE
     
     ELSE 'Lain-lain'
 END;
+
+DELETE FROM putusan_pajak 
+WHERE id IN (1, 366, 939);
