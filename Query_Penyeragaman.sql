@@ -27,4 +27,4 @@ SET amar_putusan = CASE
 END;
 
 DELETE FROM putusan_pajak 
-WHERE id IN (1, 366, 939);
+WHERE id IN (1, 366, 251, 1040, 939);
