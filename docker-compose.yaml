@@ -1,0 +1,17 @@
+services:
+  pgvector:
+    image: pgvector/pgvector:pg16
+    container_name: kapha_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: alpha123
+      POSTGRES_USER: alpha123
+      POSTGRES_PASSWORD: alpha123
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgvector_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql   # auto-run saat container pertama dibuat
+
+volumes:
+  pgvector_data:
