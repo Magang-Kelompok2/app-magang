@@ -89,7 +89,7 @@ const FilterModal = ({ isOpen, onClose, onApplyFilter }: FilterModalProps) => {
           <section>
             <h4 className="font-bold text-gray-800 mb-4 text-sm">Jenis Pajak</h4>
             <div className="flex flex-wrap gap-3">
-              {['PPh 26', 'PPh Badan', 'Transfer Pricing', 'Bentuk Usaha Tetap', 'Tax Treaty'].map(pajak => (
+              {['PPh Pasal 26', 'PPh Badan', 'Transfer Pricing', 'Bentuk Usaha Tetap', 'Tax Treaty'].map(pajak => (
                 <FilterChip 
                   key={pajak} 
                   label={pajak} 
@@ -122,14 +122,14 @@ const FilterModal = ({ isOpen, onClose, onApplyFilter }: FilterModalProps) => {
               <PengadilanOption 
                 label="Mahkamah Agung" 
                 img="/Mahkamah_Agung.svg" 
-                active={selectedPengadilan === 'MA'} 
-                onClick={() => setSelectedPengadilan('MA')}
+                active={selectedPengadilan === 'Mahkamah Agung'} 
+                onClick={() => setSelectedPengadilan('Mahkamah Agung')}
               />
               <PengadilanOption 
                 label="Pengadilan Pajak" 
                 img="/Pengadilan_Pajak.svg" 
-                active={selectedPengadilan === 'PP'} 
-                onClick={() => setSelectedPengadilan('PP')}
+                active={selectedPengadilan === 'Pengadilan Pajak'} 
+                onClick={() => setSelectedPengadilan('Pengadilan Pajak')}
               />
             </div>
           </section>

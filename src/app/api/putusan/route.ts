@@ -1,12 +1,11 @@
 import { NextResponse } from 'next/server';
 import { Pool } from 'pg';
 
-// Konfigurasi Database (Sesuaikan dengan kredensial Docker kamu)
 const pool = new Pool({
-  host: '127.0.0.1',
-  database: 'alpha123',
-  user: 'alpha123',
-  password: 'alpha123',
+  host: process.env.DB_HOST || '127.0.0.1',
+  database: process.env.DB_NAME || 'alpha123',
+  user: process.env.DB_USER || 'alpha123',
+  password: process.env.DB_PASSWORD || 'alpha123',
   port: 5432,
 });
 
@@ -14,43 +13,80 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     
-    // Ambil parameter dari URL
+    const isValid = (val: string | null) => {
+      return val && val.trim() !== "" && val !== "[]" && val !== "all" && val !== "undefined" && val !== "null";
+    };
+
     const status = searchParams.get('status');
     const jenisPajak = searchParams.get('jenisPajak');
     const upayaHukum = searchParams.get('upayaHukum');
+    const pengadilan = searchParams.get('pengadilan');
+    const tahunPutusan = searchParams.get('tahunPutusan');
     const search = searchParams.get('search');
 
     let query = 'SELECT * FROM putusan_pajak WHERE 1=1';
     const values: any[] = [];
 
-    // Logic Filter Dinamis
-    if (status && status !== '') {
-      const statusArray = status.split(',');
-      values.push(statusArray);
-      query += ` AND amar_putusan = ANY($${values.length})`;
+    // 1. Filter Status (Multi-select fix)
+    if (isValid(status)) {
+      const arr = status!.split(',').filter(Boolean).map(s => s.trim());
+      if (arr.length > 0) {
+        values.push(arr);
+        // Menggunakan ANY agar mencari salah satu dari pilihan (OR logic dalam array)
+        query += ` AND amar_putusan = ANY($${values.length}::text[])`;
+      }
     }
 
-    if (jenisPajak && jenisPajak !== '') {
-      const pajakArray = jenisPajak.split(',');
-      values.push(pajakArray);
-      query += ` AND jenis_pajak = ANY($${values.length})`;
+    // 2. Filter Jenis Pajak (Multi-select fix)
+    if (isValid(jenisPajak)) {
+      const arr = jenisPajak!.split(',').filter(Boolean).map(p => p.trim());
+      if (arr.length > 0) {
+        values.push(arr);
+        query += ` AND jenis_pajak = ANY($${values.length}::text[])`;
+      }
     }
 
-    if (search) {
+    // 3. Filter Upaya Hukum
+    if (isValid(upayaHukum)) {
+      const arr = upayaHukum!.split(',').filter(Boolean).map(u => u.trim());
+      if (arr.length > 0) {
+        values.push(arr);
+        query += ` AND upaya_hukum = ANY($${values.length}::text[])`;
+      }
+    }
+
+    // 4. Filter Pengadilan (Fix: Case-Insensitive & Partial Match)
+    if (isValid(pengadilan) && pengadilan !== 'Semua') {
+      values.push(`%${pengadilan.trim()}%`);
+      query += ` AND pengadilan ILIKE $${values.length}`;
+    }
+
+    // 5. Filter Tahun
+    if (isValid(tahunPutusan) && tahunPutusan!.includes(',')) {
+      const [start, end] = tahunPutusan!.split(',');
+      if (start !== '2006' || end !== '2024') {
+        values.push(`${start}-01-01`);
+        const sIdx = values.length;
+        values.push(`${end}-12-31`);
+        const eIdx = values.length;
+        query += ` AND tanggal_putusan BETWEEN $${sIdx} AND $${eIdx}`;
+      }
+    }
+
+    // 6. Global Search
+    if (isValid(search)) {
       values.push(`%${search}%`);
-      query += ` AND (nomor_putusan_pp ILIKE $${values.length} OR pemohon ILIKE $${values.length} OR objek_sengketa ILIKE $${values.length})`;
+      const idx = values.length;
+      query += ` AND (nomor_putusan_pp ILIKE $${idx} OR pemohon ILIKE $${idx} OR objek_sengketa ILIKE $${idx})`;
     }
 
     query += ' ORDER BY tanggal_putusan DESC';
 
     const result = await pool.query(query, values);
-    
-    // Pastikan mengembalikan NextResponse.json
     return NextResponse.json(result.rows);
     
   } catch (err: any) {
-    console.error("Database Error:", err);
+    console.error("Database Error:", err.message);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
-

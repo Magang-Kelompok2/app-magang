@@ -15,3 +15,5 @@ services:
 
 volumes:
   pgvector_data:
+
+  

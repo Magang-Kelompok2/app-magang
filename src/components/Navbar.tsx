@@ -31,7 +31,7 @@ const Navbar = () => {
           href="/app" 
           className="hover:text-(--pajak-secondary) transition-colors"
         >
-          App
+          KAPHA
         </Link>
         
         <Link 
