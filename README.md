@@ -1,4 +1,16 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+## Untuk Login Page
+Install hal-hal berikut
+```bash
+npm install next-auth bcryptjs
+npm install --save-dev @types/bcryptjs
+npm install bcryptjs @types/bcryptjs
+```
+Setelah itu jalankan
+```bash
+npx ts-node db/migrations/001_create_users.ts
+npx ts-node db/seed.ts
+```
 
 ## Inisiasi MINIO
 ```bash
