@@ -11,13 +11,17 @@ const pool = new Pool({
 
 export async function GET(
   _request: Request,
-  { params }: { params: { slug: string } }
+  { params }: { params: Promise<{ slug: string }> }
 ) {
-  const nomor = decodeURIComponent(params.slug);
+  const { slug } = await params;
+  const nomor = decodeURIComponent(slug);
 
   try {
     const result = await pool.query(
-      `SELECT * FROM putusan_pajak WHERE nomor_putusan_pp = $1 LIMIT 1`,
+      `SELECT * FROM putusan_pajak 
+       WHERE nomor_putusan_pp = $1 
+          OR nomor_putusan_pk = $1 
+       LIMIT 1`,
       [nomor]
     );
 
