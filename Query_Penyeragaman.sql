@@ -28,3 +28,11 @@ END;
 
 DELETE FROM putusan_pajak 
 WHERE id IN (1, 366, 251, 1040, 939);
+
+DELETE FROM putusan_pajak
+WHERE LOWER(pengadilan) NOT IN (
+    'mahkamah agung', 
+    'pengadilan pajak', 
+    'ma', 
+    'pp'
+);
