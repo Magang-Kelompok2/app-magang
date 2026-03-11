@@ -20,7 +20,7 @@ register_vector(conn)
 cur = conn.cursor()
 
 # 3. Load Data JSON (Gunakan file final yang sudah bersih)
-with open('src/RAG/hasil_ringkasan_pajak_saja.json', 'r', encoding='utf-8') as f:
+with open('src/RAG/hasil_ringkasan_pajak_final.json', 'r', encoding='utf-8') as f:
     data_list = json.load(f)
 
 print(f"Memproses {len(data_list)} data...")
