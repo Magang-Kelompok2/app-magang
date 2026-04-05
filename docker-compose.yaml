@@ -14,7 +14,7 @@ services:
     volumes:
       - kapha_pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U KAPHikmahArief"]
+      test: ["CMD-SHELL", "pg_isready -U KAPHikmahArief -d KAPHA_db"]
       interval: 10s
       timeout: 5s
       retries: 5
