@@ -521,10 +521,7 @@ def chat(req: ChatRequest):
     if not is_compare and not is_followup:
         putusan_list = cari_putusan(pesan)
         putusan_list = filter_by_amar_intent(pesan, putusan_list)
-        RELEVANCE_THRESHOLD = 0.3
-
-# Kemudian di chat() function:
-relevan_list = [p for p in putusan_list if p.get('skor', 0) >= RELEVANCE_THRESHOLD]
+        relevan_list = [p for p in putusan_list if p.get('skor', 0) >= 0.4]
 
         # Simpan ke session cache untuk follow-up berikutnya
         sess["cache"] = {i: p for i, p in enumerate(relevan_list, 1)}
