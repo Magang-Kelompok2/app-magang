@@ -11,16 +11,16 @@ model = SentenceTransformer('BAAI/bge-m3')
 # 2. Koneksi ke Database (Sesuaikan dengan .env kamu)
 conn = psycopg2.connect(
     host="localhost",
-    database="alpha123",
-    user="alpha123",
-    password="alpha123",
+    database="KAPHA_db",
+    user="KAPHikmahArief",
+    password="KAPHA_secret_2026",
     port="5432"
 )
 register_vector(conn)
 cur = conn.cursor()
 
 # 3. Load Data JSON (Gunakan file final yang sudah bersih)
-with open('D:\\4. Magang\\Frontend\\frontend-alpha\\src\\RAG\\hasil_ringkasan_pajak_final.json', 'r', encoding='utf-8') as f:
+with open('hasil_ringkasan_pajak_saja.json', 'r', encoding='utf-8') as f:
     data_list = json.load(f)
 
 print(f"Memproses {len(data_list)} data...")
