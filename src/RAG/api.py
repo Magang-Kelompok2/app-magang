@@ -1,6 +1,7 @@
 import re
 import os
 import psycopg2
+import time
 from pgvector.psycopg2 import register_vector
 from sentence_transformers import SentenceTransformer
 from langchain_ollama import ChatOllama
@@ -10,6 +11,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from typing import Optional
+from datetime import datetime, timedelta
+import asyncio
 
 load_dotenv()
 
@@ -69,12 +72,44 @@ class ChatResponse(BaseModel):
 #   "konteks" : string context terakhir    ← dipakai ulang untuk follow-up
 #
 # Untuk production banyak user → ganti dengan Redis.
+
 _sessions: dict[str, dict] = {}
+SESSION_TIMEOUT_MINUTES = 60  # Session expire setelah 60 menit
 
 def _get_session(sid: str) -> dict:
     if sid not in _sessions:
-        _sessions[sid] = {"cache": {}, "konteks": ""}
+        _sessions[sid] = {
+            "cache": {}, 
+            "konteks": "",
+            "created_at": datetime.now()
+        }
     return _sessions[sid]
+
+def _cleanup_expired_sessions():
+    """Hapus session yang sudah expired."""
+    now = datetime.now()
+    expired_sids = []
+    
+    for sid, data in _sessions.items():
+        age = (now - data.get("created_at", now)).total_seconds()
+        if age > SESSION_TIMEOUT_MINUTES * 60:
+            expired_sids.append(sid)
+    
+    for sid in expired_sids:
+        del _sessions[sid]
+        print(f"  [🧹 CLEANUP] Session {sid} dihapus (expired)")
+    
+    return len(expired_sids)
+
+# Jalankan cleanup setiap 10 menit
+@app.on_event("startup")
+async def start_cleanup_task():
+    async def cleanup_loop():
+        while True:
+            await asyncio.sleep(600)  # 10 menit
+            _cleanup_expired_sessions()
+    
+    asyncio.create_task(cleanup_loop())
 
 # ── PROMPTS ───────────────────────────────────────────────────────────────────
 SYSTEM_PROMPT = """
@@ -262,7 +297,9 @@ def _detect_compare(text: str) -> list[int]:
     return numbers  # kosong = belum tahu, caller handle "semua"
 
 # ── DATABASE ──────────────────────────────────────────────────────────────────
-def cari_putusan(query: str, top_k: int = TOP_K) -> list[dict]:
+import time
+
+def cari_putusan(query: str, top_k: int = TOP_K, max_retries: int = 3) -> list[dict]:
     expanded = expand_query(query)
     vec = embedder.encode(expanded, normalize_embeddings=True).tolist()
     vec_str = "[" + ",".join(map(str, vec)) + "]"
@@ -282,26 +319,34 @@ def cari_putusan(query: str, top_k: int = TOP_K) -> list[dict]:
         ORDER BY embedding_konten <=> %s::vector
         LIMIT %s
     """
-    try:
-        conn = psycopg2.connect(**DB_CONFIG)
-        register_vector(conn)
-        cur = conn.cursor()
-        cur.execute(sql, (vec_str, vec_str, top_k))
-        rows = cur.fetchall()
-        cur.close()
-        conn.close()
+    
+    for attempt in range(max_retries):
+        try:
+            conn = psycopg2.connect(**DB_CONFIG)
+            register_vector(conn)
+            cur = conn.cursor()
+            cur.execute(sql, (vec_str, vec_str, top_k))
+            rows = cur.fetchall()
+            cur.close()
+            conn.close()
 
-        cols = [
-            "nomor_pk", "nomor_pp", "tahun", "jenis_pajak",
-            "objek_sengketa", "preview_sengketa",
-            "amar", "pertimbangan", "argumen_pemohon", "argumen_terbanding",
-            "alasan", "nilai_sengketa", "hakim_ketua", "dasar_hukum_fiskus",
-            "skor"
-        ]
-        return [dict(zip(cols, r)) for r in rows]
-    except Exception as e:
-        print(f"  [DB Error] {e}")
-        return []
+            cols = [
+                "nomor_pk", "nomor_pp", "tahun", "jenis_pajak",
+                "objek_sengketa", "preview_sengketa",
+                "amar", "pertimbangan", "argumen_pemohon", "argumen_terbanding",
+                "alasan", "nilai_sengketa", "hakim_ketua", "dasar_hukum_fiskus",
+                "skor"
+            ]
+            return [dict(zip(cols, r)) for r in rows]
+            
+        except Exception as e:
+            if attempt == max_retries - 1:
+                print(f"  [❌ DB Error] Failed after {max_retries} attempts: {e}")
+                return []
+            
+            wait_time = 2 ** attempt  # exponential backoff: 1s, 2s, 4s
+            print(f"  [⚠️ Retry {attempt + 1}/{max_retries}] Mencoba lagi dalam {wait_time}s...")
+            time.sleep(wait_time)
 
 # ── LLM CALL ──────────────────────────────────────────────────────────────────
 def chat_with_kapha(user_query: str, context: str) -> str:
@@ -476,7 +521,10 @@ def chat(req: ChatRequest):
     if not is_compare and not is_followup:
         putusan_list = cari_putusan(pesan)
         putusan_list = filter_by_amar_intent(pesan, putusan_list)
-        relevan_list = [p for p in putusan_list if p.get('skor', 0) >= 0.4]
+        RELEVANCE_THRESHOLD = 0.3
+
+# Kemudian di chat() function:
+relevan_list = [p for p in putusan_list if p.get('skor', 0) >= RELEVANCE_THRESHOLD]
 
         # Simpan ke session cache untuk follow-up berikutnya
         sess["cache"] = {i: p for i, p in enumerate(relevan_list, 1)}
