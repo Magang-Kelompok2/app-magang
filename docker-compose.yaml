@@ -1,19 +1,42 @@
 services:
-  pgvector:
+  # ── PostgreSQL Database dengan pgvector (SUDAH DIUBAH) ──────────────────
+  postgres:
+    # Menggunakan image resmi pgvector yang berbasis Postgres 16
     image: pgvector/pgvector:pg16
-    container_name: kapha_db
+    container_name: kapha-postgres
     restart: unless-stopped
-    environment:
-      POSTGRES_DB: alpha123
-      POSTGRES_USER: alpha123
-      POSTGRES_PASSWORD: alpha123
     ports:
-      - "5432:5432"
+      - "${DB_PORT:-5432}:5432"
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
     volumes:
-      - pgvector_data:/var/lib/postgresql/data
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql   # auto-run saat container pertama dibuat
+      - kapha_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── pgAdmin (Tetap sama) ────────────────────────────────────────────────
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: kapha-pgadmin
+    restart: unless-stopped
+    ports:
+      - "6060:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@kapha.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    volumes:
+      - kapha_pgadmin:/var/lib/pgadmin
+    depends_on:
+      postgres:
+        condition: service_healthy
 
 volumes:
-  pgvector_data:
-
-  
+  kapha_pgdata:
+    name: kapha_pgdata
+  kapha_pgadmin:
+    name: kapha_pgadmin

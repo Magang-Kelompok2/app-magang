@@ -18,6 +18,7 @@ export default function DashboardPage() {
   // State Filter
   const [filters, setFilters] = useState({
     status: [],
+    jenisPajak: [], 
     upayaHukum: [],
     pengadilan: 'Semua',
     tahunPutusan: [2006, 2024],
@@ -34,10 +35,11 @@ export default function DashboardPage() {
     try {
       const params = new URLSearchParams({
         status: filters.status.join(','),
+        jenisPajak: filters.jenisPajak?.join(',') || '',
         upayaHukum: filters.upayaHukum.join(','),
         pengadilan: filters.pengadilan,
         tahunPutusan: filters.tahunPutusan.join(','),
-        search: activeKeywords.join(' ') 
+        search: activeKeywords.join(' ')
       });
 
       const response = await fetch(`/api/putusan?${params.toString()}`);
@@ -98,23 +100,16 @@ export default function DashboardPage() {
   };
 
   const handleApplyFilter = (modalData: any) => {
-    if (modalData.jenisPajak && modalData.jenisPajak.length > 0) {
-      const newKeywords = [...activeKeywords];
-      modalData.jenisPajak.forEach((pj: string) => {
-        if (!newKeywords.includes(pj)) newKeywords.push(pj);
-      });
-      setActiveKeywords(newKeywords);
-    }
-
     setFilters({
-      status: modalData.status || [],
-      upayaHukum: modalData.upayaHukum || [],
-      pengadilan: modalData.pengadilan || 'Semua',
-      tahunPutusan: modalData.tahunPutusan || [2006, 2024],
-      tahunPajak: modalData.tahunPajak || [2006, 2024]
-    });
-    setIsFilterOpen(false);
-  };
+        status: modalData.status || [],
+        jenisPajak: modalData.jenisPajak || [],   // ← tambah ini
+        upayaHukum: modalData.upayaHukum || [],
+        pengadilan: modalData.pengadilan || 'Semua',
+        tahunPutusan: modalData.tahunPutusan || [2006, 2024],
+        tahunPajak: modalData.tahunPajak || [2006, 2024]
+      });
+      setIsFilterOpen(false);
+    };
 
   return (
     <div className="min-h-screen bg-[var(--pajak-light)] pb-20 font-[family-name:var(--font-montserrat)]">
@@ -138,7 +133,22 @@ export default function DashboardPage() {
               className="w-full pl-11 pr-4 py-2.5 bg-white border border-[var(--pajak-border)] rounded-xl focus:ring-2 focus:ring-[var(--pajak-primary)] outline-none text-sm transition-all shadow-sm"
             />
           </div>
-          <button onClick={() => {setActiveKeywords([]); setFilters({status:[], upayaHukum:[], pengadilan:'Semua', tahunPutusan:[2006,2024], tahunPajak:[2006,2024]})}} className="text-gray-400 text-xs font-bold hover:text-red-500 px-2 transition-colors">Reset</button>
+          <button 
+            onClick={() => {
+              setActiveKeywords([]);
+              setFilters({
+                status: [],
+                jenisPajak: [],     // ← tambah ini
+                upayaHukum: [],
+                pengadilan: 'Semua',
+                tahunPutusan: [2006, 2024],
+                tahunPajak: [2006, 2024]
+              });
+            }} 
+            className="text-gray-400 text-xs font-bold hover:text-red-500 px-2 transition-colors"
+          >
+            Reset
+          </button>
         </div>
 
         {/* Keywords Tags */}
@@ -163,7 +173,7 @@ export default function DashboardPage() {
             <div className="grid grid-cols-3 gap-4">
               <KPICard label="Tidak Diterima" value={stats.tidakDiterima} color="#6B7280" />
               <KPICard label="Membatalkan" value={stats.membatalkan} color="#8B5CF6" />
-              <KPICard label="Lain-lain" value={stats.lainLain} color="#EC4899" />
+              <KPICard label="Lain-lain" value={stats.lainLain} color="#0EA5E9" />
             </div>
           </div>
 
@@ -184,21 +194,30 @@ export default function DashboardPage() {
               <ChartBar value={stats.menolak} total={stats.total} color="#EF4444" label="Menolak" />
               <ChartBar value={stats.tidakDiterima} total={stats.total} color="#6B7280" label="Tidak Diterima" />
               <ChartBar value={stats.membatalkan} total={stats.total} color="#8B5CF6" label="Membatalkan" />
-              <ChartBar value={stats.lainLain} total={stats.total} color="#EC4899" label="Lain-lain" />
+              <ChartBar value={stats.lainLain} total={stats.total} color="#0EA5E9" label="Lain-lain" />
             </div>
           </div>
         </div>
 
-        {/* LIST DATA */}
-        <div className="space-y-4">
-          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Daftar Putusan</p>
+        {/* Data List */}
+        <div className="space-y-4 mb-10">
+          <p className="text-sm font-bold text-gray-500">{loading ? "Memuat data..." : `${data.length} Putusan Ditemukan`}</p>
+          
           {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-pulse">
-              {[1,2,3,4].map(i => <div key={i} className="h-44 bg-gray-200 rounded-2xl"></div>)}
+            <div className="grid grid-cols-2 gap-6 animate-pulse">
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="h-[165px] bg-gray-200 rounded-2xl"></div>
+                ))}
+            </div>
+          ) : currentData.length > 0 ? (
+            <div className="grid grid-cols-2 gap-6">
+              {currentData.map((putusan: any) => (
+                <DecisionCard key={putusan.id} data={putusan} />
+              ))}
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {currentData.map((p: any) => <DecisionCard key={p.id} data={p} />)}
+            <div className="bg-white p-20 rounded-2xl border border-dashed border-gray-300 text-center text-gray-400">
+                Tidak ada data yang sesuai dengan filter di database.
             </div>
           )}
         </div>

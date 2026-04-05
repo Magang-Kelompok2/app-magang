@@ -19,21 +19,26 @@ interface DecisionCardProps {
 
 const DecisionCard = ({ data }: DecisionCardProps) => {
   const getStatusStyle = (status: string) => {
-    const s = status?.toLowerCase() || '';
-    if (s.includes('mengabulkan') || s.includes('kabul')) {
-      return 'bg-green-100 text-green-700 border-green-200';
-    }
-    if (s.includes('menolak') || s.includes('tolak')) {
-      return 'bg-red-100 text-red-600 border-red-200';
-    }
-    if (s.includes('sebagian')) {
-      return 'bg-orange-100 text-orange-600 border-orange-200';
-    }
-    if (s.includes('tidak dapat diterima')) {
-      return 'bg-gray-200 text-gray-700 border-gray-300';
-    }
-    return 'bg-gray-100 text-gray-500 border-gray-200';
-  };
+  const s = status?.toLowerCase() || '';
+  
+  if (s.includes('seluruh'))
+    return 'bg-[#10B981]/10 text-[#10B981] border-[#10B981]/30';
+  
+  if (s.includes('sebagian'))
+    return 'bg-[#F59E0B]/10 text-[#F59E0B] border-[#F59E0B]/30';
+  
+  if (s.includes('menolak') || s.includes('tolak'))
+    return 'bg-[#EF4444]/10 text-[#EF4444] border-[#EF4444]/30';
+  
+  if (s.includes('tidak') || s.includes('diterima'))
+    return 'bg-[#6B7280]/10 text-[#6B7280] border-[#6B7280]/30';
+  
+  if (s.includes('membatalkan') || s.includes('batal'))
+    return 'bg-[#8B5CF6]/10 text-[#8B5CF6] border-[#8B5CF6]/30';
+  
+  // Lain-lain (default)
+  return 'bg-[#0EA5E9]/10 text-[#0EA5E9] border-[#0EA5E9]/30';
+};
 
   const formattedDate = data.tanggal_putusan 
     ? new Date(data.tanggal_putusan).toLocaleDateString('id-ID', { 
@@ -44,7 +49,7 @@ const DecisionCard = ({ data }: DecisionCardProps) => {
     : "-";
 
   return (
-    <Link href={`/putusan/${data.id}`} className="block group">
+    <Link href={`/putusan/${encodeURIComponent(data.nomor_putusan_pp || data.nomor_putusan_pk || data.id)}`} className="block group">
       <div className="bg-white border border-[var(--pajak-border)] rounded-2xl p-6 shadow-sm group-hover:border-[var(--pajak-primary)] group-hover:shadow-md transition-all flex h-[190px] w-full overflow-hidden cursor-pointer">
         {/* Sisi Kiri: Info Utama */}
         <div className="flex-[1.6] pr-6 border-r border-gray-100 flex flex-col justify-between">
@@ -54,7 +59,7 @@ const DecisionCard = ({ data }: DecisionCardProps) => {
             </h4>
             <p className="text-[13px] text-gray-800 font-semibold line-clamp-2 leading-relaxed">
               {data.pemohon || "Pihak Pemohon"} 
-              <span className="text-gray-400 font-black mx-1">VS</span> 
+              <span className="text-red-600 font-black mx-1">VS</span> 
               {data.termohon || "Pihak Termohon"}
             </p>
           </div>

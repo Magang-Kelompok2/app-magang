@@ -189,32 +189,27 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  // ── DELETE SESSION ────────────────────────────────────────────────────────
-  const deleteSession = useCallback((id: string) => {
-    setHistory((prev) => {
-      const next = prev.filter((s) => s.id !== id);
-      lsSet(LS_HISTORY, next);
-      return next;
-    });
+const deleteSession = useCallback((id: string) => {
+  setHistory((prev) => {
+    const next = prev.filter((s) => s.id !== id);
+    lsSet(LS_HISTORY, next);
+
     if (id === activeIdRef.current) {
-      // kalau yang dihapus aktif → cek apakah ada sesi lain
-      setHistory((prev) => {
-        const others = prev.filter((s) => s.id !== id);
-        if (others.length > 0) {
-          const first = others[0];
-          setActiveId(first.id);
-          setMessages(first.messages);
-          lsSet(LS_ACTIVE, first);
-        } else {
-          const newId = uid();
-          setActiveId(newId);
-          setMessages([WELCOME_MSG(uid())]);
-          lsDel(LS_ACTIVE);
-        }
-        return others;
-      });
+      if (next.length > 0) {
+        const first = next[0];
+        setActiveId(first.id);
+        setMessages(first.messages);
+        lsSet(LS_ACTIVE, first);
+      } else {
+        const newId = uid();
+        setActiveId(newId);
+        setMessages([WELCOME_MSG(uid())]);
+        lsDel(LS_ACTIVE);
+      }
     }
-  }, []);
+    return next;
+  });
+}, []);
 
   // ── CLEAR ACTIVE (hapus chat + server cache) ──────────────────────────────
   const clearActive = useCallback(async () => {

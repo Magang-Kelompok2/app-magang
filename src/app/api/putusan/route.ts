@@ -56,10 +56,11 @@ export async function GET(request: Request) {
     }
 
     // 4. Filter Pengadilan (Fix: Case-Insensitive & Partial Match)
-    if (isValid(pengadilan) && pengadilan !== 'Semua') {
-      values.push(`%${pengadilan.trim()}%`);
-      query += ` AND pengadilan ILIKE $${values.length}`;
-    }
+      if (isValid(pengadilan) && pengadilan !== 'Semua') {
+    const trimmed = (pengadilan ?? '').trim();
+    values.push(`%${trimmed}%`);
+    query += ` AND pengadilan ILIKE $${values.length}`;
+  }
 
     // 5. Filter Tahun
     if (isValid(tahunPutusan) && tahunPutusan!.includes(',')) {

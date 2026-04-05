@@ -122,6 +122,33 @@ def expand_query(query: str) -> str:
             break
     return expanded
 
+def filter_by_amar_intent(query: str, putusan_list: list[dict]) -> list[dict]:
+    """Filter hasil retrieval berdasarkan intent verdict di query."""
+    q = query.lower()
+
+    KABUL_KEYWORDS = ["dikabulkan", "kabul", "menang", "diterima", "dimenangkan",
+                      "wp menang", "wajib pajak menang", "berhasil", "koreksi dibatalkan"]
+    TOLAK_KEYWORDS = ["ditolak", "kalah", "djp menang", "fiskus menang",
+                      "koreksi diterima", "koreksi dipertahankan"]
+
+    if any(k in q for k in KABUL_KEYWORDS):
+        filtered = [
+            p for p in putusan_list
+            if any(k in (p.get("amar") or "").lower()
+                   for k in ["kabul", "menerima", "membatalkan", "batal"])
+        ]
+        return filtered if filtered else putusan_list  # fallback jika kosong
+
+    if any(k in q for k in TOLAK_KEYWORDS):
+        filtered = [
+            p for p in putusan_list
+            if any(k in (p.get("amar") or "").lower()
+                   for k in ["tolak", "menolak"])
+        ]
+        return filtered if filtered else putusan_list
+
+    return putusan_list
+
 def nomor_putusan(p: dict) -> str:
     return safe(p.get("nomor_pk") or p.get("nomor_pp"), "Nomor tidak tersedia")
 
@@ -145,8 +172,8 @@ Alasan Putus   : {safe(p.get('alasan'))[:800]}
 def format_konteks(putusan_list: list[dict]) -> str:
     if not putusan_list:
         return ""
-    return "\n\n".join(format_satu(p, i) for i, p in enumerate(putusan_list, 1))
-
+    header = f"[TOTAL DATA TERSEDIA: {len(putusan_list)} PUTUSAN — JANGAN SEBUT NOMOR DI LUAR DAFTAR INI]\n\n"
+    return header + "\n\n".join(format_satu(p, i) for i, p in enumerate(putusan_list, 1))
 # ── FOLLOW-UP & COMPARE DETECTION ────────────────────────────────────────────
 # Strategi deteksi follow-up:
 #   Layer 1 — Kata eksplisit (pasti follow-up)
@@ -159,7 +186,10 @@ _FOLLOWUP_EXPLICIT = [
     "putusan tadi", "putusan itu", "nomor itu",
     "yang pertama", "yang kedua", "yang ketiga", "yang keempat", "yang kelima",
     "yang ke-1", "yang ke-2", "yang ke-3", "yang ke-4", "yang ke-5",
-    "lebih dalam", "elaborasi", "lebih lanjut",
+    "lebih dalam", "elaborasi", "lebih lanjut", "yang ke1", "yang ke2", "yang ke3", "yang ke4", "yang ke5",
+    "ke-1", "ke-2", "ke-3", "ke-4", "ke-5",
+    "ke1", "ke2", "ke3", "ke4", "ke5",
+    "nomor 1", "nomor 2", "nomor 3", "nomor 4", "nomor 5"
 ]
 
 # Layer 2: frasa yang merujuk ke "daftar/hasil" sebelumnya
@@ -183,6 +213,7 @@ _FOLLOWUP_ANALYTIC = [
     "siapa hakim", "berapa nilai",
     "apakah ada", "apakah semua",
     "pola apa", "kesimpulan",
+    "jelaskan", "ceritakan", "uraikan",
 ]
 
 _COMPARE_KEYWORDS = [
@@ -444,6 +475,7 @@ def chat(req: ChatRequest):
     # ── 2C. MODE NORMAL (retrieval baru) ──────────────────────────────────────
     if not is_compare and not is_followup:
         putusan_list = cari_putusan(pesan)
+        putusan_list = filter_by_amar_intent(pesan, putusan_list)
         relevan_list = [p for p in putusan_list if p.get('skor', 0) >= 0.4]
 
         # Simpan ke session cache untuk follow-up berikutnya

@@ -65,20 +65,30 @@ function Bubble({ msg }: { msg: ChatMessage }) {
           {msg.content}
         </div>
 
-        {msg.sources && msg.sources.length > 0 && (
+        {msg.sources && msg.sources.length > 0 && (() => {
+  // Hanya tampilkan source yang nomornya benar-benar disebut di jawaban
+  const normalize = (s: string) => s.replace(/[\s\-./]/g, "").toLowerCase();
+  const contentNorm = normalize(msg.content);
+  const usedSources = msg.sources.filter(s =>
+    contentNorm.includes(normalize(s.nomor))
+  );
+  const displaySources = usedSources.length > 0 ? usedSources : msg.sources;
+
+        return (
           <div className="w-full">
             <button onClick={() => setShowSources(!showSources)}
               className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-[var(--pajak-primary)] transition-colors py-1">
               {showSources ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
-              <span className="font-semibold">{msg.sources.length} putusan referensi</span>
+              <span className="font-semibold">{displaySources.length} putusan referensi</span>
             </button>
             {showSources && (
               <div className="mt-1.5 grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {msg.sources.map((s) => <SourceCard key={s.nomor} s={s} />)}
+                {displaySources.map((s) => <SourceCard key={s.nomor} s={s} />)}
               </div>
             )}
           </div>
-        )}
+        );
+      })()}
 
         <span className="text-[10px] text-gray-400">{time}</span>
       </div>
