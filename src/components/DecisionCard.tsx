@@ -18,6 +18,16 @@ interface DecisionCardProps {
 }
 
 const DecisionCard = ({ data }: DecisionCardProps) => {
+  const getStatusCategory = (amar: string) => {
+    const lower = amar?.toLowerCase() || '';
+    if (lower === 'mengabulkan seluruhnya' || lower.includes('mengabulkan seluruhnya')) return 'Mengabulkan Seluruhnya';
+    if (lower === 'mengabulkan sebagian') return 'Mengabulkan Sebagian';
+    if (lower === 'menolak') return 'Menolak';
+    if (lower === 'tidak dapat diterima') return 'Tidak Dapat Diterima';
+    if (lower === 'membatalkan') return 'Membatalkan';
+    return 'Lain-lain';
+  };
+
   const getStatusStyle = (status: string) => {
     const s = status?.toLowerCase() || '';
     if (s.includes('mengabulkan') || s.includes('kabul')) {
@@ -62,7 +72,7 @@ const DecisionCard = ({ data }: DecisionCardProps) => {
           <div className="flex flex-wrap gap-2 mt-auto">
             <Badge label={data.jenis_pajak || "-"} />
             <Badge 
-              label={data.amar_putusan || "Lain-lain"} 
+              label={getStatusCategory(data.amar_putusan || "")} 
               className={getStatusStyle(data.amar_putusan || "")} 
             />
             <Badge label={data.upaya_hukum || "-"} />

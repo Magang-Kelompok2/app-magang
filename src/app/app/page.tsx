@@ -38,7 +38,7 @@ export default function AppPage() {
           </header>
 
           {/* Body: sidebar + chat */}
-          <div className="flex-1 min-h-0 flex gap-0 rounded-2xl border border-[var(--pajak-border)] shadow-[0px_4px_20px_var(--pajak-shadow)] overflow-hidden mb-8">
+          <div className="flex-1 min-h-0 flex gap-0 rounded-2xl border border-(--pajak-border) shadow-[0px_4px_20px_var(--pajak-shadow)] overflow-hidden mb-8">
             <ChatHistorySidebar />
             <div className="flex-1 min-w-0 bg-white flex flex-col">
               <ChatInterface />

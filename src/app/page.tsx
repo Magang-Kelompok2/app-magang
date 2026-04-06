@@ -57,6 +57,16 @@ export default function DashboardPage() {
   }, [fetchPutusan]);
 
   // --- LOGIC STATISTIK ---
+  const getStatusCategory = (amar: string) => {
+    const lower = amar?.toLowerCase() || '';
+    if (lower === 'mengabulkan seluruhnya' || lower.includes('mengabulkan seluruhnya')) return 'Mengabulkan Seluruhnya';
+    if (lower === 'mengabulkan sebagian') return 'Mengabulkan Sebagian';
+    if (lower === 'menolak') return 'Menolak';
+    if (lower === 'tidak dapat diterima') return 'Tidak Dapat Diterima';
+    if (lower === 'membatalkan') return 'Membatalkan';
+    return 'Lain-lain';
+  };
+
   const stats = useMemo(() => {
     const rawData = data || [];
     const res = { 
@@ -70,13 +80,15 @@ export default function DashboardPage() {
     };
 
     rawData.forEach(item => {
-      const amar = item.amar_putusan?.toLowerCase() || '';
-      if (amar.includes('seluruh')) res.kabulSeluruh++;
-      else if (amar.includes('sebagian')) res.kabulSebagian++;
-      else if (amar.includes('menolak')) res.menolak++;
-      else if (amar.includes('tidak') || amar.includes('diterima')) res.tidakDiterima++;
-      else if (amar.includes('membatalkan')) res.membatalkan++;
-      else res.lainLain++;
+      const category = getStatusCategory(item.amar_putusan);
+      switch (category) {
+        case 'Mengabulkan Seluruhnya': res.kabulSeluruh++; break;
+        case 'Mengabulkan Sebagian': res.kabulSebagian++; break;
+        case 'Menolak': res.menolak++; break;
+        case 'Tidak Dapat Diterima': res.tidakDiterima++; break;
+        case 'Membatalkan': res.membatalkan++; break;
+        default: res.lainLain++; break;
+      }
     });
     return res;
   }, [data]);

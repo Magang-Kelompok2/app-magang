@@ -14,13 +14,13 @@ conn = psycopg2.connect(
     database="alpha123",
     user="alpha123",
     password="alpha123",
-    port="5432"
+    port="5433"
 )
 register_vector(conn)
 cur = conn.cursor()
 
 # 3. Load Data JSON (Gunakan file final yang sudah bersih)
-with open('D:\\4. Magang\\Frontend\\frontend-alpha\\src\\RAG\\hasil_ringkasan_pajak_final.json', 'r', encoding='utf-8') as f:
+with open('D:\\4. Magang\\Frontend\\frontend-alpha\\src\\RAG\\summary_pajak_final_fixed copy.json', 'r', encoding='utf-8') as f:
     data_list = json.load(f)
 
 print(f"Memproses {len(data_list)} data...")

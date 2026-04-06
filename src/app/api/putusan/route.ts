@@ -6,7 +6,7 @@ const pool = new Pool({
   database: process.env.DB_NAME || 'alpha123',
   user: process.env.DB_USER || 'alpha123',
   password: process.env.DB_PASSWORD || 'alpha123',
-  port: 5432,
+  port: 5433,
 });
 
 export async function GET(request: Request) {
@@ -31,9 +31,25 @@ export async function GET(request: Request) {
     if (isValid(status)) {
       const arr = status!.split(',').filter(Boolean).map(s => s.trim());
       if (arr.length > 0) {
-        values.push(arr);
-        // Menggunakan ANY agar mencari salah satu dari pilihan (OR logic dalam array)
-        query += ` AND amar_putusan = ANY($${values.length}::text[])`;
+        const statusMap: { [key: string]: string[] } = {
+          'Mengabulkan Seluruhnya': ['mengabulkan seluruhnya', 'mengabulkan seluruhnya permohonan banding pemohon banding'],
+          'Mengabulkan Sebagian': ['mengabulkan sebagian'],
+          'Menolak': ['menolak'],
+          'Tidak Dapat Diterima': ['tidak dapat diterima'],
+          'Membatalkan': ['membatalkan'],
+        };
+        const conditions: string[] = [];
+        for (const stat of arr) {
+          if (stat === 'Lain-lain') {
+            conditions.push(`lower(amar_putusan) NOT IN ('mengabulkan seluruhnya', 'mengabulkan sebagian', 'menolak', 'tidak dapat diterima', 'membatalkan')`);
+          } else {
+            const variants = statusMap[stat] || [stat.toLowerCase()];
+            conditions.push(`lower(amar_putusan) IN (${variants.map(v => `'${v}'`).join(',')})`);
+          }
+        }
+        if (conditions.length > 0) {
+          query += ` AND (${conditions.join(' OR ')})`;
+        }
       }
     }
 
@@ -57,7 +73,7 @@ export async function GET(request: Request) {
 
     // 4. Filter Pengadilan (Fix: Case-Insensitive & Partial Match)
     if (isValid(pengadilan) && pengadilan !== 'Semua') {
-      values.push(`%${pengadilan.trim()}%`);
+      values.push(`%${pengadilan!.trim()}%`);
       query += ` AND pengadilan ILIKE $${values.length}`;
     }
 

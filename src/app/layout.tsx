@@ -4,8 +4,8 @@ import "./globals.css";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Sistem Analisis Putusan Pajak",
-  description: "Aplikasi Analisis Putusan Pajak Indonesia",
+  title: "Kapha - Sistem Informasi Analisis Putusan Pajak Indonesia",
+  description: "Sistem Informasi Analisis Putusan Pajak Indonesia",
   icons: {
     icon: "/Logo_Alpha.svg",
   },
