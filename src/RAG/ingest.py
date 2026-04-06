@@ -109,7 +109,7 @@ for data in data_list:
     
     # 3. Proses jadi Vector
     print(f"Sedang memproses: {nomor_tampilan}")
-    embedding = model.encode(teks_untuk_ai).tolist()
+    embedding = model.encode(teks_untuk_ai, normalize_embeddings=True).tolist()
 
     # 4. Simpan ke Postgres
     try:

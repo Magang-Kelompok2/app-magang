@@ -145,21 +145,21 @@ def cari_putusan(query: str, top_k: int = TOP_K) -> list[dict]:
     vec = embedder.encode(expanded, normalize_embeddings=True).tolist()
     vec_str = "[" + ",".join(map(str, vec)) + "]"
 
-    sql = """
-        SELECT
-            nomor_putusan_pk, nomor_putusan_pp,
-            tahun_putusan, jenis_pajak,
-            objek_sengketa, preview_sengketa,
-            amar_putusan, pertimbangan_hakim,
-            argumen_pemohon, argumen_terbanding,
-            alasan_keputusan, nilai_sengketa,
-            hakim_ketua, dasar_hukum_fiskus,
-            1 - (embedding_konten <=> %s::vector) AS skor
-        FROM putusan_pajak
-        WHERE embedding_konten IS NOT NULL
-        ORDER BY embedding_konten <=> %s::vector
-        LIMIT %s
-    """
+sql = """
+    SELECT
+        nomor_putusan_pk, nomor_putusan_pp,
+        tahun_putusan, jenis_pajak,
+        objek_sengketa, preview_sengketa,
+        amar_putusan, pertimbangan_hakim,      
+        argumen_pemohon, argumen_terbanding,
+        alasan_keputusan, nilai_sengketa,      
+        hakim_ketua, dasar_hukum_fiskus,
+        1 - (embedding_konten <=> %s::vector) AS skor
+    FROM putusan_pajak
+    WHERE embedding_konten IS NOT NULL
+    ORDER BY embedding_konten <=> %s::vector
+    LIMIT %s
+"""
     try:
         conn = psycopg2.connect(**DB_CONFIG)
         cur  = conn.cursor()
