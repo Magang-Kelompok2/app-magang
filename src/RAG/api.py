@@ -117,24 +117,50 @@ async def start_cleanup_task():
     
     asyncio.create_task(cleanup_loop())
 
-# ── PROMPTS ───────────────────────────────────────────────────────────────────
+# # ── PROMPTS ───────────────────────────────────────────────────────────────────
+# SYSTEM_PROMPT = """
+# Kamu adalah KAPHA, Senior Konsultan Pajak Internasional yang santai tapi tajam.
+
+# LARANGAN KERAS (WAJIB DIPATUHI):
+# 1. DILARANG KERAS menyebut "Putusan 1", "Putusan 2", "Putaran pertama", dst.
+#    → WAJIB gunakan nomor asli: 3586/B/PK/Pjk/2019, Put-44616/PP/M.III/15/2013, dst.
+# 2. DILARANG menjawab dalam Bahasa Inggris.
+# 3. DILARANG menyebut DGT Form/SKD jika sengketa murni Transfer Pricing.
+# 4. DILARANG mengarang nomor putusan yang tidak ada di data.
+
+# KEWAJIBAN:
+# 1. AMAR: Setiap putusan WAJIB disertai apakah hakim MENERIMA atau MENOLAK argumen DJP.
+# 2. ANTI-REPETISI: Gabungkan putusan dengan pola mirip menjadi narasi padat.
+# 3. ISU RUGI: Jika query menyebut "rugi" atau "loss":
+#    - WAJIB cari apakah ada data rugi/loss di pertimbangan hakim
+#    - WAJIB jelaskan apakah perusahaan pembanding (comparable) dalam kondisi rugi
+#    - WAJIB nyatakan bagaimana hakim menilai validitas data pembanding rugi tersebut
+#    - Jika tidak ada fakta rugi di data → nyatakan: "Dalam putusan-putusan ini, kondisi rugi tidak disebutkan secara eksplisit"
+
+# MATERIIL:
+# - Transfer Pricing: Fokus pada Metode (CUP, RPM, TNMM), Arm's Length Principle, validitas data pembanding.
+# - P3B: Fokus pada Beneficial Ownership, Treaty Abuse, validitas SKD.
+# - BUT: Fokus pada Time Test atau atribusi laba.
+
+# GAYA: Briefing senior ke junior. Teknis, profesional, to-the-point. Narasi mengalir, bukan bullet list.
+# """
+
 SYSTEM_PROMPT = """
 Kamu adalah KAPHA, Senior Konsultan Pajak Internasional yang santai tapi tajam.
+PRINSIP JAWABAN:
+1. IDENTITAS: Wajib sebutkan Nomor Putusan asli (PK/PP). Dilarang pakai nomor urut (Putusan 1, 2, dst).
+2. HASIL AKHIR: Setiap analisis WAJIB menyatakan apakah Hakim MEMBATALKAN koreksi Fiskus (WP Menang) atau MEMPERTAHANKAN koreksi Fiskus (WP Kalah).
+3. SEBAB & AKIBAT: Jelaskan substansi sengketa. Jangan cuma baca angka, tapi jelaskan alasan hukum/logika pajaknya.
+4. ISU RUGI: Cari kata 'rugi'/'loss'. Jika tidak ada, sampaikan secara natural bahwa fakta kerugian tidak ditemukan dalam data tersebut.
+5. NO HALU: Jangan sebut DGT Form jika sengketa murni Transfer Pricing. Jangan ngarang nomor putusan.
 
-PRINSIP JAWABAN (WAJIB):
-1. NO TEMPLATE: Dilarang keras menggunakan nomor urut (Putusan 1, 2, dst) atau nomor palsu (123456). Gunakan NOMOR PUTUSAN ASLI dari data.
-2. AMAR PUTUSAN: WAJIB menyatakan apakah Hakim MENERIMA (Membatalkan koreksi) atau MENOLAK (Mempertahankan koreksi) argumen Fiskus/WP.
-3. ANTI-REPETISI: Jika ada beberapa putusan dengan pola sengketa yang mirip, GABUNGKAN narasinya menjadi satu kesimpulan yang padat. Jangan mengulang kalimat pembuka yang sama.
-4. ISU RUGI: Cari fakta 'rugi'/'loss'. Jika tidak ada, sampaikan secara natural bahwa kondisi rugi tidak disebutkan eksplisit. Jangan ngarang cerita rugi.
-5. NO HALU: Jangan sebut DGT Form/SKD jika sengketa murni Transfer Pricing.
 
-MATERIIL:
-- P3B: Fokus pada Beneficial Ownership, Treaty Abuse, dan validitas SKD.
-- BUT: Fokus pada Time Test atau atribusi laba.
-- Transfer Pricing: Fokus pada Metode (CUP, RPM, TNMM) dan Arm's Length Principle.
+ANALISIS MATERIIL:
+- P3B (Tax Treaty): Fokus pada Beneficial Ownership, Treaty Abuse, dan validitas SKD/DGT sesuai pasal treaty terkait.
+- BUT (Permanent Establishment): Fokus pada ambang batas waktu (Time Test) atau atribusi laba.
+- Transfer Pricing: Fokus pada Metode (CUP, RPM, TNMM) dan Arm's Length Principle (ALP).
+GAYA: Profesional, tajam, Bahasa Indonesia. Hindari template kaku dan poin-poin yang dipaksakan jika data minim."""
 
-GAYA: Briefing senior ke junior. Gunakan Bahasa Indonesia yang teknis, profesional, dan to-the-point.
-"""
 
 # ── HELPERS ───────────────────────────────────────────────────────────────────
 def safe(value, fallback="Tidak tersedia") -> str:
@@ -145,23 +171,20 @@ def safe(value, fallback="Tidak tersedia") -> str:
 
 def expand_query(query: str) -> str:
     expansions = {
-        r"\brugi\b":              "rugi kerugian losses negatif",
-        r"\bpembanding\b":        "pembanding comparable data kesebandingan",
-        r"\btransfer pricing\b":  "transfer pricing harga transfer afiliasi hubungan istimewa TP",
-        r"\bbut\b":               "BUT Bentuk Usaha Tetap permanent establishment",
-        r"\bp3b\b":               "P3B tax treaty perjanjian penghindaran pajak berganda",
-        r"\bppn\b":               "PPN Pajak Pertambahan Nilai",
-        r"\bpph\b":               "PPh Pajak Penghasilan",
-        r"\bpbb\b":               "PBB Pajak Bumi Bangunan",
-        r"\bdividend\b":          "dividen dividend pembagian laba",
-        r"\broyalti\b":           "royalti royalty hak cipta lisensi",
+        r"\brugi\b":             "rugi kerugian losses negatif comparable loss-making",
+        r"\bpembanding\b":       "pembanding comparable data kesebandingan loss-making",
+        r"\btransfer pricing\b": "transfer pricing harga transfer afiliasi hubungan istimewa TP",
+        r"\bbut\b":              "BUT Bentuk Usaha Tetap permanent establishment",
+        r"\bp3b\b":              "P3B tax treaty perjanjian penghindaran pajak berganda",
+        r"\bppn\b":              "PPN Pajak Pertambahan Nilai",
+        r"\bpph\b":              "PPh Pajak Penghasilan",
+        r"\broyalti\b":          "royalti royalty hak cipta lisensi",
     }
-    expanded = query
+    parts = [query]
     for pattern, replacement in expansions.items():
         if re.search(pattern, query, re.IGNORECASE):
-            expanded = f"{query} {replacement}"
-            break
-    return expanded
+            parts.append(replacement)  # hapus break, kumpulkan semua
+    return " ".join(parts)
 
 def filter_by_amar_intent(query: str, putusan_list: list[dict]) -> list[dict]:
     """Filter hasil retrieval berdasarkan intent verdict di query."""
@@ -194,6 +217,11 @@ def nomor_putusan(p: dict) -> str:
     return safe(p.get("nomor_pk") or p.get("nomor_pp"), "Nomor tidak tersedia")
 
 def format_satu(p: dict, index: int) -> str:
+    pertimbangan = safe(p.get('pertimbangan'))
+    # Deteksi apakah ada kata rugi di data
+    ada_rugi = any(k in pertimbangan.lower() for k in ["rugi", "loss", "negatif", "loss-making"])
+    rugi_flag = "⚠️ ADA FAKTA RUGI/LOSS" if ada_rugi else "Tidak ada fakta rugi eksplisit"
+    
     return f"""
 [PUTUSAN {index} | Relevansi: {p.get('skor', 0):.0%}]
 Nomor          : {nomor_putusan(p)}
@@ -203,10 +231,11 @@ Objek Sengketa : {safe(p.get('objek_sengketa'))}
 Amar Putusan   : {safe(p.get('amar'))}
 Nilai Sengketa : {safe(p.get('nilai_sengketa'))}
 Hakim Ketua    : {safe(p.get('hakim_ketua'))}
+Fakta Rugi     : {rugi_flag}
 Dasar Hukum    : {safe(p.get('dasar_hukum_fiskus'))[:500]}
 Argumen Pemohon: {safe(p.get('argumen_pemohon'))[:600]}
 Argumen Fiskus : {safe(p.get('argumen_terbanding'))[:600]}
-Pertimbangan   : {safe(p.get('pertimbangan'))[:2000]}
+Pertimbangan   : {pertimbangan[:2000]}
 Alasan Putus   : {safe(p.get('alasan'))[:800]}
 """.strip()
 
@@ -355,29 +384,68 @@ def cari_putusan(query: str, top_k: int = TOP_K, max_retries: int = 3) -> list[d
             time.sleep(wait_time)
 
 # ── LLM CALL ──────────────────────────────────────────────────────────────────
-def chat_with_kapha(user_query: str, context: str) -> str:
+# def chat_with_kapha(user_query: str, context: str) -> str:
+#     prompt_final = f"""
+# BERIKUT ADALAH DATA PUTUSAN SEBAGAI REFERENSI:
+# {context}
+
+# PERTANYAAN: {user_query}
+
+# PERATURAN JAWABAN:
+# 1. Gunakan Bahasa Indonesia yang santai tapi tajam (Gaya Senior Konsultan).
+# 2. Jika data di atas menggunakan Bahasa Inggris, terjemahkan poin pentingnya ke Bahasa Indonesia.
+# 3. Jangan menjawab dalam Bahasa Inggris!
+
+# TUGAS ANALISIS:
+# - Sampaikan jawaban dalam bentuk NARASI/PARAGRAF mengalir.
+# - Gunakan Nomor Putusan asli (PK/PP) sebagai referensi dalam kalimat.
+# - Jelaskan SEBAB (kenapa dikoreksi) dan AKIBAT (hasil putusan/amar hakim).
+# - Berikan KESIMPULAN di akhir jika terdapat pola yang sama antar putusan.
+# - Jawab FULL dalam Bahasa Indonesia yang tajam.
+# """
+#     messages = [
+#         SystemMessage(content=SYSTEM_PROMPT),
+#         HumanMessage(content=prompt_final)
+#     ]
+#     response = llm.invoke(messages)
+#     return response.content
+def chat_with_kapha(user_query, context=""):
+    # Kita bungkus agar Llama 3 patuh pada Bahasa Indonesia
     prompt_final = f"""
-BERIKUT ADALAH DATA PUTUSAN SEBAGAI REFERENSI:
-{context}
+    BERIKUT ADALAH DATA PUTUSAN SEBAGAI REFERENSI:
+    {context}
+    
+    PERTANYAAN: {user_query}
+    
+    PERATURAN JAWABAN:
+    1. Gunakan Bahasa Indonesia yang santai tapi tajam (Gaya Senior Konsultan).
+    2. Jika data di atas menggunakan Bahasa Inggris, terjemahkan poin pentingnya ke Bahasa Indonesia.
+    3. Jangan menjawab dalam Bahasa Inggris!
 
-PERTANYAAN: {user_query}
+    TUGAS ANALISIS (STRICT):
+    1. NO TEMPLATE: Dilarang keras menggunakan nomor urut (Putusan 1, 2, dst) atau nomor palsu. Gunakan NOMOR PUTUSAN ASLI (PK/PP) dari data sebagai referensi utama.
+    2. NARASI PROFESIONAL: Jika data minim, gunakan paragraf mengalir. Jika data lengkap, bedah per kasus dengan fokus pada SEBAB (alasan koreksi) vs AKIBAT (amar putusan).
+    3. MATERIIL:
+        - Isu P3B/BUT: Jelaskan apakah sengketa soal administrasi (DGT Form) atau substansi ekonomi/Time Test.
+        - Isu Transfer Pricing: Bedah metode (ALP) dan validitas data pembanding. JANGAN bahas DGT Form jika sengketa murni TP.
+    4. ISU RUGI: Cari fakta 'rugi'/'loss'. Jika ada, jelaskan posisi Hakim terhadapnya. Jika tidak ada, sampaikan secara natural bahwa kondisi rugi tidak disebutkan eksplisit.
+    5. GAYA: Briefing senior konsultan ke junior. Gunakan Bahasa Indonesia yang tajam, teknis, tapi enak dibaca.
+    6. JANGAN menuliskan kalimat pembuka yang sama lebih dari satu kali. Jika ada beberapa data dengan kesimpulan yang mirip, GABUNGKAN menjadi satu analisis kolektif.
 
-PERATURAN JAWABAN:
-1. Gunakan Bahasa Indonesia yang santai tapi tajam (Gaya Senior Konsultan).
-2. Jika data di atas menggunakan Bahasa Inggris, terjemahkan poin pentingnya ke Bahasa Indonesia.
-3. Jangan menjawab dalam Bahasa Inggris!
-
-TUGAS ANALISIS:
-- Sampaikan jawaban dalam bentuk NARASI/PARAGRAF mengalir.
-- Gunakan Nomor Putusan asli (PK/PP) sebagai referensi dalam kalimat.
-- Jelaskan SEBAB (kenapa dikoreksi) dan AKIBAT (hasil putusan/amar hakim).
-- Berikan KESIMPULAN di akhir jika terdapat pola yang sama antar putusan.
-- Jawab FULL dalam Bahasa Indonesia yang tajam.
-"""
+    INSTRUKSI ANALISIS:
+    - Sampaikan jawaban dalam bentuk NARASI/PARAGRAF mengalir (seperti briefing kantor).
+    - Gunakan Nomor Putusan asli sebagai referensi di dalam kalimat.
+    - WAJIB sebutkan apakah Hakim memutuskan MENERIMA atau MENOLAK koreksi Fiskus tersebut (hasil akhir/amar).
+    - Analisis SEBAB (kenapa dikoreksi) dan AKIBAT (implikasi putusan hakim).
+    - Mengenai KONDISI RUGI: Sebutkan jika ada fakta kerugian. Jika tidak ada, sampaikan secara natural.
+    - JANGAN pakai template list "Pertama, Kedua, dst" jika datanya berulang/mirip. Gabungkan saja narasinya agar padat.
+    """
+    
     messages = [
         SystemMessage(content=SYSTEM_PROMPT),
         HumanMessage(content=prompt_final)
     ]
+    
     response = llm.invoke(messages)
     return response.content
 
