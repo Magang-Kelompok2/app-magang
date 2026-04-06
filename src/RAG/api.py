@@ -5,6 +5,7 @@ import time
 from pgvector.psycopg2 import register_vector
 from sentence_transformers import SentenceTransformer
 from langchain_ollama import ChatOllama
+from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -35,15 +36,20 @@ print(f"⏳ Loading embedding model ({EMBED_MODEL})...")
 embedder = SentenceTransformer(EMBED_MODEL)
 
 print(f"⏳ Connecting to {MODEL_NAME} at {BASE_URL}...")
-llm = ChatOllama(
-    model=MODEL_NAME,
-    base_url=BASE_URL,
+# llm = ChatOllama(
+#     model=MODEL_NAME,
+#     base_url=BASE_URL,
+#     temperature=0.3,
+#     num_predict=1500,
+#     repeat_penalty=1.3,
+#     repeat_last_n=128,
+# )
+llm = ChatOpenAI(
+    model=os.getenv("MODEL_NAME", "gpt-4o-mini"),
+    api_key=os.getenv("OPENAI_API_KEY"),
     temperature=0.3,
-    num_predict=1500,
-    repeat_penalty=1.3,
-    repeat_last_n=128,
+    max_tokens=1500,
 )
-
 # ── FastAPI App ───────────────────────────────────────────────────────────────
 app = FastAPI(title="KAPHA RAG API", version="1.0.0")
 
