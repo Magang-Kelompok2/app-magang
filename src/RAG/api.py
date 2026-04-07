@@ -1,15 +1,19 @@
 import re
 import os
 import psycopg2
+import time
 from pgvector.psycopg2 import register_vector
-from sentence_transformers import SentenceTransformer
+from sentence_transformers import SentenceTransformer, CrossEncoder
 from langchain_ollama import ChatOllama
+from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
-from typing import Optional
+from typing import Optional, List
+from datetime import datetime, timedelta
+import asyncio
 
 load_dotenv()
 
@@ -21,7 +25,7 @@ DB_CONFIG = {
     "password": os.getenv("DB_PASS", "alpha123"),
     "port":     int(os.getenv("DB_PORT", 5432)),
 }
-TOP_K          = int(os.getenv("RAG_TOP_K", 5))
+TOP_K          = int(os.getenv("RAG_TOP_K", 10))   # dinaikkan ke 10 untuk reranking
 MODEL_NAME     = os.getenv("MODEL_NAME", "llama3")
 BASE_URL       = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 EMBED_MODEL    = os.getenv("EMBEDDING_MODEL", "BAAI/bge-m3")
@@ -31,14 +35,24 @@ ALLOWED_ORIGIN = os.getenv("NEXT_PUBLIC_APP_URL", "http://localhost:3000")
 print(f"⏳ Loading embedding model ({EMBED_MODEL})...")
 embedder = SentenceTransformer(EMBED_MODEL)
 
+# ── Reranker — load sekali saat startup ───────────────────────────────────────
+print("⏳ Loading reranker model (cross-encoder/ms-marco-MiniLM-L-6-v2)...")
+reranker = CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')
+
 print(f"⏳ Connecting to {MODEL_NAME} at {BASE_URL}...")
-llm = ChatOllama(
-    model=MODEL_NAME,
-    base_url=BASE_URL,
+# llm = ChatOllama(
+#     model=MODEL_NAME,
+#     base_url=BASE_URL,
+#     temperature=0.3,
+#     num_predict=1500,
+#     repeat_penalty=1.3,
+#     repeat_last_n=128,
+# )
+llm = ChatOpenAI(
+    model=os.getenv("MODEL_NAME", "gpt-4o-mini"),
+    api_key=os.getenv("OPENAI_API_KEY"),
     temperature=0.3,
-    num_predict=1500,
-    repeat_penalty=1.3,
-    repeat_last_n=128,
+    max_tokens=1500,
 )
 
 # ── FastAPI App ───────────────────────────────────────────────────────────────
@@ -69,12 +83,44 @@ class ChatResponse(BaseModel):
 #   "konteks" : string context terakhir    ← dipakai ulang untuk follow-up
 #
 # Untuk production banyak user → ganti dengan Redis.
+
 _sessions: dict[str, dict] = {}
+SESSION_TIMEOUT_MINUTES = 60  # Session expire setelah 60 menit
 
 def _get_session(sid: str) -> dict:
     if sid not in _sessions:
-        _sessions[sid] = {"cache": {}, "konteks": ""}
+        _sessions[sid] = {
+            "cache": {},
+            "konteks": "",
+            "created_at": datetime.now()
+        }
     return _sessions[sid]
+
+def _cleanup_expired_sessions():
+    """Hapus session yang sudah expired."""
+    now = datetime.now()
+    expired_sids = []
+
+    for sid, data in _sessions.items():
+        age = (now - data.get("created_at", now)).total_seconds()
+        if age > SESSION_TIMEOUT_MINUTES * 60:
+            expired_sids.append(sid)
+
+    for sid in expired_sids:
+        del _sessions[sid]
+        print(f"  [🧹 CLEANUP] Session {sid} dihapus (expired)")
+
+    return len(expired_sids)
+
+# Jalankan cleanup setiap 10 menit
+@app.on_event("startup")
+async def start_cleanup_task():
+    async def cleanup_loop():
+        while True:
+            await asyncio.sleep(600)  # 10 menit
+            _cleanup_expired_sessions()
+
+    asyncio.create_task(cleanup_loop())
 
 # ── PROMPTS ───────────────────────────────────────────────────────────────────
 SYSTEM_PROMPT = """
@@ -157,7 +203,6 @@ OUTPUT DIHARAPKAN
 - Setiap klaim berbasis fakta.
 - Pisahkan alasan Fiskus, pertimbangan hakim, dan hasil akhir secara jelas.
 """
-
 # ── HELPERS ───────────────────────────────────────────────────────────────────
 def safe(value, fallback="Tidak tersedia") -> str:
     if value is None:
@@ -167,30 +212,63 @@ def safe(value, fallback="Tidak tersedia") -> str:
 
 def expand_query(query: str) -> str:
     expansions = {
-        r"\brugi\b":              "rugi kerugian losses negatif",
-        r"\bpembanding\b":        "pembanding comparable data kesebandingan",
-        r"\btransfer pricing\b":  "transfer pricing harga transfer afiliasi hubungan istimewa TP",
-        r"\bbut\b":               "BUT Bentuk Usaha Tetap permanent establishment",
-        r"\bp3b\b":               "P3B tax treaty perjanjian penghindaran pajak berganda",
-        r"\bppn\b":               "PPN Pajak Pertambahan Nilai",
-        r"\bpph\b":               "PPh Pajak Penghasilan",
-        r"\bpbb\b":               "PBB Pajak Bumi Bangunan",
-        r"\bdividend\b":          "dividen dividend pembagian laba",
-        r"\broyalti\b":           "royalti royalty hak cipta lisensi",
+        r"\brugi\b":             "rugi kerugian losses negatif comparable loss-making",
+        r"\bpembanding\b":       "pembanding comparable data kesebandingan loss-making",
+        r"\btransfer pricing\b": "transfer pricing harga transfer afiliasi hubungan istimewa TP",
+        r"\bbut\b":              "BUT Bentuk Usaha Tetap permanent establishment",
+        r"\bp3b\b":              "P3B tax treaty perjanjian penghindaran pajak berganda",
+        r"\bppn\b":              "PPN Pajak Pertambahan Nilai",
+        r"\bpph\b":              "PPh Pajak Penghasilan",
+        r"\broyalti\b":          "royalti royalty hak cipta lisensi",
     }
-    expanded = query
+    parts = [query]
     for pattern, replacement in expansions.items():
         if re.search(pattern, query, re.IGNORECASE):
-            expanded = f"{query} {replacement}"
-            break
-    return expanded
+            parts.append(replacement)  # hapus break, kumpulkan semua
+    return " ".join(parts)
+
+def filter_by_amar_intent(query: str, putusan_list: list[dict]) -> list[dict]:
+    """Filter hasil retrieval berdasarkan intent verdict di query."""
+    q = query.lower()
+
+    KABUL_KEYWORDS = ["dikabulkan", "kabul", "menang", "diterima", "dimenangkan",
+                      "wp menang", "wajib pajak menang", "berhasil", "koreksi dibatalkan"]
+    TOLAK_KEYWORDS = ["ditolak", "kalah", "djp menang", "fiskus menang",
+                      "koreksi diterima", "koreksi dipertahankan"]
+
+    if any(k in q for k in KABUL_KEYWORDS):
+        filtered = [
+            p for p in putusan_list
+            if any(k in (p.get("amar") or "").lower()
+                   for k in ["kabul", "menerima", "membatalkan", "batal"])
+        ]
+        return filtered if filtered else putusan_list  # fallback jika kosong
+
+    if any(k in q for k in TOLAK_KEYWORDS):
+        filtered = [
+            p for p in putusan_list
+            if any(k in (p.get("amar") or "").lower()
+                   for k in ["tolak", "menolak"])
+        ]
+        return filtered if filtered else putusan_list
+
+    return putusan_list
 
 def nomor_putusan(p: dict) -> str:
     return safe(p.get("nomor_pk") or p.get("nomor_pp"), "Nomor tidak tersedia")
 
 def format_satu(p: dict, index: int) -> str:
+    pertimbangan = safe(p.get('pertimbangan'))
+    # Deteksi apakah ada kata rugi di data
+    ada_rugi = any(k in pertimbangan.lower() for k in ["rugi", "loss", "negatif", "loss-making"])
+    rugi_flag = "⚠️ ADA FAKTA RUGI/LOSS" if ada_rugi else "Tidak ada fakta rugi eksplisit"
+
+    # Tampilkan rerank score jika tersedia, fallback ke cosine similarity
+    rerank = p.get('skor_rerank')
+    skor_display = f"{rerank:.2f} (rerank)" if rerank is not None else f"{p.get('skor', 0):.0%}"
+
     return f"""
-[PUTUSAN {index} | Relevansi: {p.get('skor', 0):.0%}]
+[PUTUSAN {index} | Relevansi: {skor_display}]
 Nomor          : {nomor_putusan(p)}
 Tahun          : {safe(p.get('tahun'))}
 Jenis Pajak    : {safe(p.get('jenis_pajak'))}
@@ -198,23 +276,32 @@ Objek Sengketa : {safe(p.get('objek_sengketa'))}
 Amar Putusan   : {safe(p.get('amar'))}
 Nilai Sengketa : {safe(p.get('nilai_sengketa'))}
 Hakim Ketua    : {safe(p.get('hakim_ketua'))}
-Dasar Hukum    : {safe(p.get('dasar_hukum_fiskus'))[:500]}
-Argumen Pemohon: {safe(p.get('argumen_pemohon'))[:600]}
-Argumen Fiskus : {safe(p.get('argumen_terbanding'))[:600]}
-Pertimbangan   : {safe(p.get('pertimbangan'))[:2000]}
-Alasan Putus   : {safe(p.get('alasan'))[:800]}
+Fakta Rugi     : {rugi_flag}
+Dasar Hukum    : {safe(p.get('dasar_hukum_fiskus'))[:400]}
+Argumen Pemohon: {safe(p.get('argumen_pemohon'))[:300]}
+Argumen Fiskus : {safe(p.get('argumen_terbanding'))[:300]}
+Pertimbangan   : {pertimbangan[:800]}
+Alasan Putus   : {safe(p.get('alasan'))[:500]}
 """.strip()
 
 def format_konteks(putusan_list: list[dict]) -> str:
     if not putusan_list:
         return ""
-    return "\n\n".join(format_satu(p, i) for i, p in enumerate(putusan_list, 1))
+    # Whitelist nomor putusan yang boleh disebut — cegah LLM mengarang nomor di luar daftar ini
+    nomor_valid = [nomor_putusan(p) for p in putusan_list]
+    header = (
+        f"[TOTAL DATA TERSEDIA: {len(putusan_list)} PUTUSAN]\n"
+        f"NOMOR PUTUSAN YANG BOLEH DISEBUT (HANYA INI, DILARANG SEBUT NOMOR LAIN):\n"
+        + "\n".join(f"- {n}" for n in nomor_valid)
+        + "\n\n"
+    )
+    return header + "\n\n".join(format_satu(p, i) for i, p in enumerate(putusan_list, 1))
 
 # ── FOLLOW-UP & COMPARE DETECTION ────────────────────────────────────────────
 # Strategi deteksi follow-up:
 #   Layer 1 — Kata eksplisit (pasti follow-up)
 #   Layer 2 — Frasa kontekstual (merujuk ke "hasil" / "daftar" sebelumnya)
-#   Layer 3 — Pertanyaan analitik pendek tanpa topik baru + ada cache aktif
+#   Layer 3 — Pertanyaan analitik DENGAN referensi nomor + tidak ada sinyal topik baru
 
 # Layer 1: kata yang selalu merujuk ke sesi sebelumnya
 _FOLLOWUP_EXPLICIT = [
@@ -222,7 +309,10 @@ _FOLLOWUP_EXPLICIT = [
     "putusan tadi", "putusan itu", "nomor itu",
     "yang pertama", "yang kedua", "yang ketiga", "yang keempat", "yang kelima",
     "yang ke-1", "yang ke-2", "yang ke-3", "yang ke-4", "yang ke-5",
-    "lebih dalam", "elaborasi", "lebih lanjut",
+    "lebih dalam", "elaborasi", "lebih lanjut", "yang ke1", "yang ke2", "yang ke3", "yang ke4", "yang ke5",
+    "ke-1", "ke-2", "ke-3", "ke-4", "ke-5",
+    "ke1", "ke2", "ke3", "ke4", "ke5",
+    "nomor 1", "nomor 2", "nomor 3", "nomor 4", "nomor 5"
 ]
 
 # Layer 2: frasa yang merujuk ke "daftar/hasil" sebelumnya
@@ -246,6 +336,15 @@ _FOLLOWUP_ANALYTIC = [
     "siapa hakim", "berapa nilai",
     "apakah ada", "apakah semua",
     "pola apa", "kesimpulan",
+    "jelaskan", "ceritakan", "uraikan",
+]
+
+# Sinyal topik baru — jika ada ini di query, perlakukan sebagai retrieval baru meskipun ada cache
+_NEW_TOPIC_SIGNALS = [
+    "transfer pricing", "p3b", "but", "pph 26", "pph badan", "ppn",
+    "beneficial owner", "royalti", "dividen", "tnmm", "cup method", "rpm",
+    "arm's length", "hubungan istimewa", "permanent establishment",
+    "treaty shopping", "withholding tax", "management fee",
 ]
 
 _COMPARE_KEYWORDS = [
@@ -263,6 +362,10 @@ def _detect_followup(text: str, has_cache: bool) -> bool:
 
     t = text.lower()
 
+    # Jika ada sinyal topik baru yang kuat → perlakukan sebagai retrieval baru
+    if any(k in t for k in _NEW_TOPIC_SIGNALS):
+        return False
+
     # Layer 1: eksplisit → langsung True
     if any(k in t for k in _FOLLOWUP_EXPLICIT):
         return True
@@ -271,13 +374,12 @@ def _detect_followup(text: str, has_cache: bool) -> bool:
     if any(k in t for k in _FOLLOWUP_CONTEXTUAL):
         return True
 
-    # Layer 3: analitik + ada angka index (1-5) → kemungkinan besar follow-up
+    # Layer 3: analitik HARUS disertai referensi angka index (1-5) agar tidak false positive
+    # Tanpa angka, pertanyaan analitik dianggap topik baru
     has_index   = bool(re.search(r'\b([1-5])\b', t))
     is_analytic = any(k in t for k in _FOLLOWUP_ANALYTIC)
-    if is_analytic:
-        return True  # pertanyaan analitik apapun dianggap follow-up jika ada cache
-    if has_index:
-        return True  # ada angka 1-5 + ada cache → follow-up
+    if is_analytic and has_index:
+        return True  # analitik + ada index → follow-up
 
     return False
 
@@ -294,7 +396,8 @@ def _detect_compare(text: str) -> list[int]:
     return numbers  # kosong = belum tahu, caller handle "semua"
 
 # ── DATABASE ──────────────────────────────────────────────────────────────────
-def cari_putusan(query: str, top_k: int = TOP_K) -> list[dict]:
+
+def cari_putusan(query: str, top_k: int = TOP_K, max_retries: int = 3) -> list[dict]:
     expanded = expand_query(query)
     vec = embedder.encode(expanded, normalize_embeddings=True).tolist()
     vec_str = "[" + ",".join(map(str, vec)) + "]"
@@ -314,28 +417,58 @@ def cari_putusan(query: str, top_k: int = TOP_K) -> list[dict]:
         ORDER BY embedding_konten <=> %s::vector
         LIMIT %s
     """
-    try:
-        conn = psycopg2.connect(**DB_CONFIG)
-        register_vector(conn)
-        cur = conn.cursor()
-        cur.execute(sql, (vec_str, vec_str, top_k))
-        rows = cur.fetchall()
-        cur.close()
-        conn.close()
 
-        cols = [
-            "nomor_pk", "nomor_pp", "tahun", "jenis_pajak",
-            "objek_sengketa", "preview_sengketa",
-            "amar", "pertimbangan", "argumen_pemohon", "argumen_terbanding",
-            "alasan", "nilai_sengketa", "hakim_ketua", "dasar_hukum_fiskus",
-            "skor"
-        ]
-        return [dict(zip(cols, r)) for r in rows]
-    except Exception as e:
-        print(f"  [DB Error] {e}")
-        return []
+    cols = [
+        "nomor_pk", "nomor_pp", "tahun", "jenis_pajak",
+        "objek_sengketa", "preview_sengketa",
+        "amar", "pertimbangan", "argumen_pemohon", "argumen_terbanding",
+        "alasan", "nilai_sengketa", "hakim_ketua", "dasar_hukum_fiskus",
+        "skor"
+    ]
 
-# ── LLM CALL ──────────────────────────────────────────────────────────────────
+    for attempt in range(max_retries):
+        try:
+            conn = psycopg2.connect(**DB_CONFIG)
+            register_vector(conn)
+            cur = conn.cursor()
+            cur.execute(sql, (vec_str, vec_str, top_k))
+            rows = cur.fetchall()
+            cur.close()
+            conn.close()
+
+            results = [dict(zip(cols, r)) for r in rows]
+
+            # ── Reranking ────────────────────────────────────────────────────
+            # Gabungkan field paling informatif sebagai teks kandidat untuk cross-encoder
+            def build_candidate_text(p: dict) -> str:
+                parts = [
+                    p.get("objek_sengketa") or "",
+                    p.get("pertimbangan") or "",
+                    p.get("argumen_pemohon") or "",
+                ]
+                return " ".join(x[:500] for x in parts if x).strip()
+
+            pairs = [(query, build_candidate_text(p)) for p in results]
+            rerank_scores = reranker.predict(pairs)
+
+            for i, p in enumerate(results):
+                p["skor_rerank"] = float(rerank_scores[i])
+
+            # Sort by rerank score, bukan cosine similarity
+            results.sort(key=lambda x: x["skor_rerank"], reverse=True)
+
+            # Ambil top 5 setelah reranking
+            return results[:5]
+
+        except Exception as e:
+            if attempt == max_retries - 1:
+                print(f"  [❌ DB Error] Failed after {max_retries} attempts: {e}")
+                return []
+
+            wait_time = 2 ** attempt  # exponential backoff: 1s, 2s, 4s
+            print(f"  [⚠️ Retry {attempt + 1}/{max_retries}] Mencoba lagi dalam {wait_time}s...")
+            time.sleep(wait_time)
+
 def chat_with_kapha(user_query: str, context: str) -> str:
     prompt_final = f"""
 BERIKUT ADALAH DATA PUTUSAN SEBAGAI REFERENSI:
@@ -359,6 +492,15 @@ TUGAS ANALISIS:
         SystemMessage(content=SYSTEM_PROMPT),
         HumanMessage(content=prompt_final)
     ]
+    response = llm.invoke(messages)
+    return response.content
+
+
+    messages = [
+        SystemMessage(content=SYSTEM_PROMPT),
+        HumanMessage(content=prompt_final)
+    ]
+
     response = llm.invoke(messages)
     return response.content
 
@@ -465,6 +607,9 @@ def chat(req: ChatRequest):
     is_followup     = _detect_followup(pesan, bool(cache))
     is_compare      = bool(compare_indices) and bool(cache)
 
+    # Inisialisasi relevan_list agar tidak NameError di path manapun
+    relevan_list: list[dict] = []
+
     # ── 2A. MODE COMPARE ──────────────────────────────────────────────────────
     if is_compare:
         # Jika tidak ada angka spesifik → compare semua yang di cache
@@ -507,7 +652,15 @@ def chat(req: ChatRequest):
     # ── 2C. MODE NORMAL (retrieval baru) ──────────────────────────────────────
     if not is_compare and not is_followup:
         putusan_list = cari_putusan(pesan)
-        relevan_list = [p for p in putusan_list if p.get('skor', 0) >= 0.4]
+        putusan_list = filter_by_amar_intent(pesan, putusan_list)
+
+        # Filter berdasarkan rerank score — threshold 0.0 sudah cukup ketat untuk cross-encoder
+        # (skor cross-encoder bisa negatif sampai ~+10; di bawah 0 artinya tidak relevan)
+        relevan_list = [p for p in putusan_list if p.get('skor_rerank', 0) >= 0.0]
+
+        # Fallback: kalau semua di bawah threshold, ambil top-2 daripada tidak ada jawaban
+        if not relevan_list and putusan_list:
+            relevan_list = putusan_list[:2]
 
         # Simpan ke session cache untuk follow-up berikutnya
         sess["cache"] = {i: p for i, p in enumerate(relevan_list, 1)}
@@ -596,9 +749,6 @@ def hapus_session(session_id: str):
 # Tambahkan endpoint ini ke dalam src/RAG/api.py (setelah endpoint /chat)
 # ─────────────────────────────────────────────────────────────────────────────
 
-from pydantic import BaseModel
-from typing import Optional, List
-
 class PutusanDetail(BaseModel):
     nomor: str
     amar: str
@@ -677,7 +827,6 @@ async def get_putusan_detail(nomor: str):
         cur.close()
 
         if not row:
-            from fastapi import HTTPException
             raise HTTPException(status_code=404, detail=f"Putusan '{nomor}' tidak ditemukan")
 
         (
