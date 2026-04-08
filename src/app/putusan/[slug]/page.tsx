@@ -16,6 +16,9 @@ import {
   Calendar,
   Globe,
   ChevronRight,
+  Search,
+  Download,
+  ChevronLeft,
 } from "lucide-react";
 import Navbar from "../../../components/Navbar";
 
@@ -59,6 +62,75 @@ interface PdfModule {
       workerSrc: string;
     };
   };
+}
+
+interface PdfTextItem {
+  str?: string;
+}
+
+interface PdfTextRenderer {
+  str: string;
+}
+
+interface PdfPageProxy {
+  getTextContent: () => Promise<{ items: PdfTextItem[] }>;
+}
+
+interface PdfDocumentProxy {
+  numPages: number;
+  getPage: (pageNumber: number) => Promise<PdfPageProxy>;
+}
+
+function getDisplayNomor(row: Pick<PutusanRow, "nomor_putusan_pk" | "nomor_putusan_pp">) {
+  return row.nomor_putusan_pk || row.nomor_putusan_pp || "-";
+}
+
+function getPartyLabels(hasPk: boolean) {
+  return hasPk
+    ? {
+        primary: "Pemohon Peninjauan Kembali",
+        secondary: "Termohon Peninjauan Kembali",
+        nomor: "Nomor Putusan PK",
+      }
+    : {
+        primary: "Pemohon Banding",
+        secondary: "Terbanding",
+        nomor: "Nomor Putusan",
+      };
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function highlightText(text: string, keyword: string): string {
+  const safeText = escapeHtml(text);
+  if (!keyword.trim()) {
+    return `<span style="color: transparent;">${safeText}</span>`;
+  }
+
+  const pattern = new RegExp(`(${escapeRegExp(keyword)})`, "gi");
+  const parts = text.split(pattern);
+
+  return parts
+    .map((part) => {
+      const safePart = escapeHtml(part);
+      if (part.match(pattern)) {
+        return `<mark style="color: transparent; background: rgba(250, 204, 21, 0.28); border-radius: 3px; box-shadow: inset 0 -0.35em 0 rgba(250, 204, 21, 0.32);">${safePart}</mark>`;
+      }
+
+      return `<span style="color: transparent;">${safePart}</span>`;
+    })
+    .join("");
 }
 
 function getStatusConfig(amar: string) {
@@ -270,6 +342,12 @@ function PdfModal({ namaFile, onClose }: { namaFile: string; onClose: () => void
   const [pdfMod, setPdfMod] = useState<PdfModule | null>(null);
   const blobUrlRef = useRef<string | null>(null);
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const [pdfProxy, setPdfProxy] = useState<PdfDocumentProxy | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchMatches, setSearchMatches] = useState<number[]>([]);
+  const [activeMatchIndex, setActiveMatchIndex] = useState(0);
+  const [searching, setSearching] = useState(false);
+  const pageRefs = useRef<Record<number, HTMLDivElement | null>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -304,18 +382,119 @@ function PdfModal({ namaFile, onClose }: { namaFile: string; onClose: () => void
   }, [namaFile]);
 
   const { Document, Page } = pdfMod ?? {};
+  const normalizedSearchTerm = searchTerm.trim();
+
+  const runSearch = async () => {
+    if (!pdfProxy) return;
+
+    const keyword = searchTerm.trim().toLowerCase();
+    if (!keyword) {
+      setSearchMatches([]);
+      setActiveMatchIndex(0);
+      return;
+    }
+
+    setSearching(true);
+
+    try {
+      const matches: number[] = [];
+      for (let pageNumber = 1; pageNumber <= pdfProxy.numPages; pageNumber += 1) {
+        const page = await pdfProxy.getPage(pageNumber);
+        const content = await page.getTextContent();
+        const pageText = content.items.map((item) => item.str ?? "").join(" ").toLowerCase();
+        if (pageText.includes(keyword)) {
+          matches.push(pageNumber);
+        }
+      }
+
+      setSearchMatches(matches);
+      setActiveMatchIndex(0);
+
+      if (matches.length > 0) {
+        pageRefs.current[matches[0]]?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const jumpToMatch = (direction: 1 | -1) => {
+    if (searchMatches.length === 0) return;
+    const nextIndex = (activeMatchIndex + direction + searchMatches.length) % searchMatches.length;
+    setActiveMatchIndex(nextIndex);
+    pageRefs.current[searchMatches[nextIndex]]?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl h-[90vh] flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-3 border-b shrink-0">
-          <span className="text-sm text-gray-700 truncate max-w-[400px]">{namaFile}</span>
+        <div className="flex items-center justify-between gap-4 px-5 py-3 border-b shrink-0">
+          <div className="min-w-0 flex-1">
+            <span className="text-sm text-gray-700 truncate block max-w-[400px]">{namaFile}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            {blobUrl && (
+              <a
+                href={blobUrl}
+                download={namaFile}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+              >
+                <Download size={13} />
+                Download
+              </a>
+            )}
+            <button
+              onClick={onClose}
+              className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-3 px-5 py-3 border-b bg-white shrink-0">
+          <div className="relative min-w-[260px] flex-1">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  void runSearch();
+                }
+              }}
+              placeholder="Cari kata di PDF..."
+              className="w-full rounded-xl border border-gray-200 bg-gray-50 pl-9 pr-3 py-2 text-sm outline-none focus:border-[var(--pajak-primary)] focus:bg-white"
+            />
+          </div>
           <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center"
+            onClick={() => void runSearch()}
+            disabled={!pdfProxy || searching}
+            className="rounded-xl bg-[var(--pajak-primary)] px-4 py-2 text-xs font-semibold text-white disabled:opacity-50"
           >
-            <X size={14} />
+            {searching ? "Mencari..." : "Cari"}
           </button>
+          <div className="flex items-center gap-2 text-xs text-gray-500">
+            <button
+              onClick={() => jumpToMatch(-1)}
+              disabled={searchMatches.length === 0}
+              className="rounded-lg border border-gray-200 p-2 disabled:opacity-40"
+            >
+              <ChevronLeft size={14} />
+            </button>
+            <span>
+              {searchMatches.length > 0
+                ? `${activeMatchIndex + 1}/${searchMatches.length} halaman`
+                : "Tidak ada hasil"}
+            </span>
+            <button
+              onClick={() => jumpToMatch(1)}
+              disabled={searchMatches.length === 0}
+              className="rounded-lg border border-gray-200 p-2 disabled:opacity-40"
+            >
+              <ChevronRight size={14} />
+            </button>
+          </div>
         </div>
         <div className="flex-1 overflow-y-auto flex flex-col items-center bg-gray-100 p-4 gap-4">
           {!Document || !blobUrl ? (
@@ -323,16 +502,31 @@ function PdfModal({ namaFile, onClose }: { namaFile: string; onClose: () => void
           ) : (
             <Document
               file={blobUrl}
-              onLoadSuccess={({ numPages }: { numPages: number }) => setNumPages(numPages)}
+              onLoadSuccess={(pdf: PdfDocumentProxy) => {
+                setNumPages(pdf.numPages);
+                setPdfProxy(pdf);
+              }}
             >
               {Array.from({ length: numPages }, (_, i) => (
-                <Page
+                <div
                   key={i + 1}
-                  pageNumber={i + 1}
-                  width={800}
-                  className="shadow-md mb-2"
-                  renderAnnotationLayer={false}
-                />
+                  ref={(node) => {
+                    pageRefs.current[i + 1] = node;
+                  }}
+                  className="relative"
+                >
+                  <div className="mb-2 text-xs text-gray-400 font-semibold">Halaman {i + 1}</div>
+                  <Page
+                    pageNumber={i + 1}
+                    width={800}
+                    className="shadow-md mb-2"
+                    renderAnnotationLayer={false}
+                    renderTextLayer
+                    customTextRenderer={({ str }: PdfTextRenderer) =>
+                      highlightText(str, normalizedSearchTerm)
+                    }
+                  />
+                </div>
               ))}
             </Document>
           )}
@@ -345,12 +539,13 @@ function PdfModal({ namaFile, onClose }: { namaFile: string; onClose: () => void
 function RingkasanTab({ d }: { d: PutusanRow }) {
   const hakimAnggota = parseHakim(d.hakim_anggota);
   const pihakLawan = d.terbanding || d.termohon;
+  const labels = getPartyLabels(Boolean(d.nomor_putusan_pk));
 
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <PartyCard role="Pemohon Banding" name={d.pemohon} color="#EF4444" icon={<User size={16} />} />
-        <PartyCard role="Terbanding" name={pihakLawan} color="#10B981" icon={<User size={16} />} />
+        <PartyCard role={labels.primary} name={d.pemohon} color="#EF4444" icon={<User size={16} />} />
+        <PartyCard role={labels.secondary} name={pihakLawan} color="#10B981" icon={<User size={16} />} />
       </div>
 
       {d.preview_sengketa && (
@@ -428,6 +623,7 @@ function RingkasanTab({ d }: { d: PutusanRow }) {
 
 function ArgumenTab({ d }: { d: PutusanRow }) {
   const pihakLawan = d.terbanding || d.termohon;
+  const labels = getPartyLabels(Boolean(d.nomor_putusan_pk));
 
   return (
     <div className="space-y-4">
@@ -442,7 +638,7 @@ function ArgumenTab({ d }: { d: PutusanRow }) {
                 className="text-[9px] uppercase font-bold text-red-400 tracking-widest"
                 style={{ fontFamily: "var(--font-montserrat)" }}
               >
-                Pemohon Banding
+                {labels.primary}
               </p>
               <p
                 className="text-[11px] font-semibold text-gray-700"
@@ -471,7 +667,7 @@ function ArgumenTab({ d }: { d: PutusanRow }) {
                 className="text-[9px] uppercase font-bold text-emerald-500 tracking-widest"
                 style={{ fontFamily: "var(--font-montserrat)" }}
               >
-                Terbanding
+                {labels.secondary}
               </p>
               <p
                 className="text-[11px] font-semibold text-gray-700"
@@ -529,6 +725,7 @@ function AmarTab({
   statusConfig: ReturnType<typeof getStatusConfig>;
 }) {
   const alasanPutusan = d.alasan_putusan || d.alasan_keputusan;
+  const labels = getPartyLabels(Boolean(d.nomor_putusan_pk));
 
   return (
     <div className="space-y-4">
@@ -571,7 +768,7 @@ function AmarTab({
               fontFamily: "var(--font-montserrat)",
             }}
           >
-            Permohonan Banding {d.pemohon ?? ""} {(d.amar_putusan ?? "").toLowerCase()} seluruhnya
+            {labels.primary} {d.pemohon ?? ""} {(d.amar_putusan ?? "").toLowerCase()}.
           </p>
         </div>
       </div>
@@ -615,8 +812,9 @@ export default function PutusanDetailPage() {
   }, [slug]);
 
   const statusConfig = data ? getStatusConfig(data.amar_putusan) : null;
-  const nomorDisplay = data?.nomor_putusan_pp || data?.nomor_putusan_pk || "-";
+  const nomorDisplay = data ? getDisplayNomor(data) : "-";
   const pihakLawan = data?.terbanding || data?.termohon;
+  const labels = getPartyLabels(Boolean(data?.nomor_putusan_pk));
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: "#F4F6F9" }}>
@@ -626,7 +824,7 @@ export default function PutusanDetailPage() {
 
       <Navbar />
 
-      <div className="max-w-[1400px] mx-auto px-8 py-7">
+      <div className="max-w-[1440px] mx-auto px-8 py-8">
         <div className="flex items-center gap-2 mb-6">
           <button
             onClick={() => router.back()}
@@ -684,27 +882,27 @@ export default function PutusanDetailPage() {
 
         {data && statusConfig && !loading && (
           <>
-            <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-7 mb-5">
-              <div className="flex items-start justify-between gap-4 flex-wrap mb-4">
-                <div className="min-w-0">
+            <div className="bg-white rounded-[32px] border border-gray-100 shadow-sm p-8 mb-6">
+              <div className="flex items-start justify-between gap-6 flex-wrap mb-5">
+                <div className="min-w-0 max-w-[880px]">
                   <p
                     className="text-[11px] font-bold uppercase tracking-widest text-gray-400 mb-1"
                     style={{ fontFamily: "var(--font-montserrat)" }}
                   >
-                    Nomor Putusan
+                    {labels.nomor}
                   </p>
                   <h1
-                    className="text-[#0C4E8C] leading-tight break-all"
+                    className="text-[#0C4E8C] leading-tight break-words"
                     style={{
                       fontFamily: "var(--font-coolvetica)",
-                      fontSize: "clamp(1.4rem, 3vw, 2.1rem)",
+                      fontSize: "clamp(1.55rem, 3vw, 2.25rem)",
                     }}
                   >
                     {nomorDisplay}
                   </h1>
                 </div>
 
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-3 shrink-0">
                   <span
                     className="text-sm px-4 py-1.5 rounded-full font-bold border"
                     style={{
@@ -720,7 +918,7 @@ export default function PutusanDetailPage() {
                   <button
                     onClick={() => setShowPdf(true)}
                     disabled={!data.nama_file}
-                    className="flex items-center gap-1.5 text-xs font-semibold px-4 py-2 rounded-xl transition-all shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="flex items-center gap-1.5 text-sm font-semibold px-4 py-2.5 rounded-xl transition-all shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
                     style={{
                       backgroundColor: "#0C81E4",
                       color: "white",
@@ -735,25 +933,25 @@ export default function PutusanDetailPage() {
 
               <div className="h-px bg-gray-100 mb-4" />
 
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-5">
                 {[
-                  { label: "Pemohon Banding", value: data.pemohon },
-                  { label: "Terbanding", value: pihakLawan },
+                  { label: labels.primary, value: data.pemohon },
+                  { label: labels.secondary, value: pihakLawan },
                   { label: "Tahun Pajak", value: data.tahun_pajak?.toString() },
                   { label: "Tanggal Putusan", value: formatDate(data.tanggal_putusan) },
                   { label: "Negara Lawan", value: data.negara_lawan_transaksi },
                 ]
                   .filter((m) => m.value)
                   .map((m) => (
-                    <div key={m.label}>
+                    <div key={m.label} className="rounded-2xl bg-gray-50/80 border border-gray-100 px-4 py-4">
                       <p
-                        className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-0.5"
+                        className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-1.5"
                         style={{ fontFamily: "var(--font-montserrat)" }}
                       >
                         {m.label}
                       </p>
                       <p
-                        className="text-[12px] font-semibold text-gray-800 leading-snug"
+                        className="text-[13px] font-semibold text-gray-800 leading-relaxed break-words"
                         style={{ fontFamily: "var(--font-montserrat)" }}
                       >
                         {m.value || "-"}
@@ -764,7 +962,7 @@ export default function PutusanDetailPage() {
 
               <div className="h-px bg-gray-100 my-4" />
 
-              <div className="flex flex-wrap gap-2.5">
+              <div className="flex flex-wrap gap-3">
                 {data.jenis_pajak && (
                   <InfoPill icon={<Coins size={14} />} label="Jenis Pajak" value={data.jenis_pajak} color="#0C81E4" />
                 )}
@@ -791,15 +989,15 @@ export default function PutusanDetailPage() {
               </div>
             </div>
 
-            <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-              <div className="flex border-b border-gray-100 px-6 overflow-x-auto">
+            <div className="bg-white rounded-[32px] border border-gray-100 shadow-sm overflow-hidden">
+              <div className="flex border-b border-gray-100 px-8 overflow-x-auto">
                 {TABS.map((tab) => {
                   const isActive = activeTab === tab.key;
                   return (
                     <button
                       key={tab.key}
                       onClick={() => setActiveTab(tab.key)}
-                      className="relative shrink-0 pb-3.5 pt-4 px-1 mr-6 text-sm font-semibold transition-colors whitespace-nowrap"
+                      className="relative shrink-0 pb-4 pt-5 px-1 mr-8 text-sm font-semibold transition-colors whitespace-nowrap"
                       style={{
                         color: isActive ? "#0C81E4" : "#9ca3af",
                         fontFamily: "var(--font-montserrat)",
@@ -817,7 +1015,7 @@ export default function PutusanDetailPage() {
                 })}
               </div>
 
-              <div className="p-6">
+              <div className="p-8">
                 {activeTab === "ringkasan" && <RingkasanTab d={data} />}
                 {activeTab === "argumen" && <ArgumenTab d={data} />}
                 {activeTab === "pertimbangan" && <PertimbanganTab d={data} />}

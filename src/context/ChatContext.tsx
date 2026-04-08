@@ -12,6 +12,8 @@ export interface Source {
   amar: string;
   tahun: string;
   skor: number;
+  nomor_putusan_pk?: string;
+  nomor_putusan_pp?: string;
 }
 
 export interface ChatMessage {
@@ -58,6 +60,44 @@ const WELCOME_MSG = (id: string): ChatMessage => ({
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function uid() { return Math.random().toString(36).slice(2, 10); }
+function normalizeSources(sources: unknown): Source[] {
+  if (!Array.isArray(sources)) return [];
+
+  const seen = new Set<string>();
+  const normalized: Source[] = [];
+
+  for (const item of sources) {
+    if (!item || typeof item !== "object") continue;
+
+    const source = item as Partial<Source> & Record<string, unknown>;
+    const nomorPk =
+      typeof source.nomor_putusan_pk === "string"
+        ? source.nomor_putusan_pk.trim()
+        : typeof source.nomor_pk === "string"
+          ? source.nomor_pk.trim()
+          : "";
+    const nomorPp =
+      typeof source.nomor_putusan_pp === "string"
+        ? source.nomor_putusan_pp.trim()
+        : "";
+    const nomor =
+      nomorPk ||
+      nomorPp ||
+      (typeof source.nomor === "string" ? source.nomor.trim() : "");
+    if (!nomor || seen.has(nomor)) continue;
+
+    seen.add(nomor);
+    normalized.push({
+      nomor,
+      jenis_pajak: typeof source.jenis_pajak === "string" ? source.jenis_pajak : "-",
+      amar: typeof source.amar === "string" ? source.amar : "-",
+      tahun: typeof source.tahun === "string" || typeof source.tahun === "number" ? String(source.tahun) : "-",
+      skor: typeof source.skor === "number" ? source.skor : 0,
+    });
+  }
+
+  return normalized;
+}
 function trunc(s: string, n = 52) { return s.length <= n ? s : s.slice(0, n) + "…"; }
 
 function lsGet<T>(key: string, fallback: T): T {
@@ -151,7 +191,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           id:        uid(),
           role:      "assistant",
           content:   data.error ? `⚠️ Error: ${data.error}` : data.answer,
-          sources:   data.sources ?? [],
+          sources:   normalizeSources(data.sources),
           timestamp: new Date().toISOString(),
         },
       ]);

@@ -29,17 +29,41 @@ interface DashboardFilters {
   tahunPajak: [number, number];
 }
 
+interface DashboardStats {
+  menolak: number;
+  mengabulkan_seluruhnya: number;
+  mengabulkan_sebagian: number;
+  tidak_dapat_diterima: number;
+  membatalkan: number;
+  lainnya: number;
+}
+
+interface DashboardResponse {
+  items?: PutusanListItem[];
+  total?: number;
+  stats?: Partial<DashboardStats>;
+}
+
 export default function DashboardPage() {
   const [activeKeywords, setActiveKeywords] = useState<string[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [data, setData] = useState<PutusanListItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [totalItems, setTotalItems] = useState(0);
+  const [stats, setStats] = useState<DashboardStats>({
+    menolak: 0,
+    mengabulkan_seluruhnya: 0,
+    mengabulkan_sebagian: 0,
+    tidak_dapat_diterima: 0,
+    membatalkan: 0,
+    lainnya: 0,
+  });
   const [filters, setFilters] = useState<DashboardFilters>({
     status: [] as string[],
     jenisPajak: [] as string[],
     upayaHukum: [] as string[],
-    pengadilan: 'MA',
+    pengadilan: 'Semua',
     tahunPutusan: [2006, 2024],
     tahunPajak: [2006, 2024]
   });
@@ -55,17 +79,36 @@ export default function DashboardPage() {
         upayaHukum: filters.upayaHukum.join(','),
         pengadilan: filters.pengadilan,
         tahunPutusan: filters.tahunPutusan.join(','),
+        tahunPajak: filters.tahunPajak.join(','),
         search: activeKeywords.join(' ')
       });
 
       const res = await fetch('/api/putusan?' + params.toString(), {
         cache: 'no-store'
       });
-      const result = await res.json();
-      setData(Array.isArray(result) ? result : []);
+      const result: DashboardResponse = await res.json();
+      setData(Array.isArray(result.items) ? result.items : []);
+      setTotalItems(typeof result.total === "number" ? result.total : 0);
+      setStats({
+        menolak: Number(result.stats?.menolak ?? 0),
+        mengabulkan_seluruhnya: Number(result.stats?.mengabulkan_seluruhnya ?? 0),
+        mengabulkan_sebagian: Number(result.stats?.mengabulkan_sebagian ?? 0),
+        tidak_dapat_diterima: Number(result.stats?.tidak_dapat_diterima ?? 0),
+        membatalkan: Number(result.stats?.membatalkan ?? 0),
+        lainnya: Number(result.stats?.lainnya ?? 0),
+      });
     } catch (error) {
       console.error("Gagal load data dari database:", error);
       setData([]);
+      setTotalItems(0);
+      setStats({
+        menolak: 0,
+        mengabulkan_seluruhnya: 0,
+        mengabulkan_sebagian: 0,
+        tidak_dapat_diterima: 0,
+        membatalkan: 0,
+        lainnya: 0,
+      });
     } finally {
       setLoading(false);
     }
@@ -83,21 +126,6 @@ export default function DashboardPage() {
     return data.slice(begin, begin + itemsPerPage);
   }, [data, currentPage]);
 
-  const stats = useMemo(() => {
-    const rawData = Array.isArray(data) ? data : [];
-    const count = (val: string) => rawData.filter(item => item.amar_putusan === val).length;
-
-    return {
-      total: rawData.length,
-      kabulSeluruh: count('Mengabulkan Seluruhnya'),
-      kabulSebagian: count('Mengabulkan Sebagian'),
-      menolak: count('Menolak'),
-      tidakDiterima: count('Tidak Dapat Diterima'),
-      membatalkan: count('Membatalkan'),
-      lainLain: count('Lain-lain'),
-    };
-  }, [data]);
-
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && inputValue.trim() !== "") {
       if (!activeKeywords.includes(inputValue.trim())) {
@@ -113,7 +141,7 @@ export default function DashboardPage() {
       status: [],
       jenisPajak: [],
       upayaHukum: [],
-      pengadilan: 'MA',
+      pengadilan: 'Semua',
       tahunPutusan: [2006, 2024],
       tahunPajak: [2006, 2024]
     });
@@ -186,46 +214,43 @@ export default function DashboardPage() {
         <div className="flex flex-col lg:flex-row gap-4 items-stretch mb-10">
           <div className="flex-[1.4] flex flex-col gap-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <KPICard label="Kabul Seluruh" value={stats.kabulSeluruh} color="#10B981" />
-              <KPICard label="Kabul Sebagian" value={stats.kabulSebagian} color="#F59E0B" />
+              <KPICard label="Kabul Seluruh" value={stats.mengabulkan_seluruhnya} color="#10B981" />
+              <KPICard label="Kabul Sebagian" value={stats.mengabulkan_sebagian} color="#F59E0B" />
               <KPICard label="Menolak" value={stats.menolak} color="#EF4444" />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <KPICard label="Tidak Diterima" value={stats.tidakDiterima} color="#6B7280" />
+              <KPICard label="Tidak Diterima" value={stats.tidak_dapat_diterima} color="#6B7280" />
               <KPICard label="Membatalkan" value={stats.membatalkan} color="#8B5CF6" />
-              <KPICard label="Lain-lain" value={stats.lainLain} color="#0EA5E9" />
+              <KPICard label="Lainnya" value={stats.lainnya} color="#0EA5E9" />
             </div>
           </div>
 
-          <div className="flex-1 bg-white p-7 rounded-[32px] border border-[var(--pajak-border)] shadow-sm flex flex-col justify-between min-h-[224px]">
+          <div className="flex-1 bg-white p-7 rounded-[32px] border border-[var(--pajak-border)] shadow-sm flex flex-col justify-between h-[224px]">
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1.5">
                   Total Putusan
                 </p>
                 <p className="text-5xl font-[family-name:var(--font-coolvetica)] text-gray-800 leading-none">
-                  {stats.total.toLocaleString('id-ID')}
+                  {totalItems.toLocaleString('id-ID')}
                 </p>
-              </div>
-              <div className="text-[9px] font-bold text-gray-300 uppercase italic tracking-tighter">
-                Stats Visual
               </div>
             </div>
 
             <div className="flex items-end gap-2.5 h-32 justify-center mt-6 px-1">
-              <ChartBar value={stats.kabulSeluruh} total={stats.total} color="#10B981" label="Kabul Seluruh" />
-              <ChartBar value={stats.kabulSebagian} total={stats.total} color="#F59E0B" label="Kabul Sebagian" />
-              <ChartBar value={stats.menolak} total={stats.total} color="#EF4444" label="Menolak" />
-              <ChartBar value={stats.tidakDiterima} total={stats.total} color="#6B7280" label="Tidak Diterima" />
-              <ChartBar value={stats.membatalkan} total={stats.total} color="#8B5CF6" label="Membatalkan" />
-              <ChartBar value={stats.lainLain} total={stats.total} color="#0EA5E9" label="Lain-lain" />
+              <ChartBar value={stats.mengabulkan_seluruhnya} total={totalItems} color="#10B981" label="Kabul Seluruh" />
+              <ChartBar value={stats.mengabulkan_sebagian} total={totalItems} color="#F59E0B" label="Kabul Sebagian" />
+              <ChartBar value={stats.menolak} total={totalItems} color="#EF4444" label="Menolak" />
+              <ChartBar value={stats.tidak_dapat_diterima} total={totalItems} color="#6B7280" label="Tidak Diterima" />
+              <ChartBar value={stats.membatalkan} total={totalItems} color="#8B5CF6" label="Membatalkan" />
+              <ChartBar value={stats.lainnya} total={totalItems} color="#0EA5E9" label="Lainnya" />
             </div>
           </div>
         </div>
 
         <div className="space-y-4 mb-10">
           <p className="text-sm font-bold text-gray-500">
-            {loading ? "Memuat data..." : `${data.length} Putusan Ditemukan`}
+            {loading ? "Memuat data..." : `${totalItems} Putusan Ditemukan`}
           </p>
 
           {loading ? (

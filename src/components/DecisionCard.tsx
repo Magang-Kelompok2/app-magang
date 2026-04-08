@@ -30,8 +30,9 @@ function getStatusStyle(status: string): string {
 
 export default function DecisionCard({ data }: DecisionCardProps) {
   const slug = encodeURIComponent(
-    data.nomor_putusan_pp ?? data.nomor_putusan_pk ?? String(data.id)
+    data.nomor_putusan_pk ?? data.nomor_putusan_pp ?? String(data.id)
   );
+  const nomorDisplay = data.nomor_putusan_pk ?? data.nomor_putusan_pp ?? "Nomor tidak tersedia";
 
   const formattedDate = data.tanggal_putusan
     ? new Date(data.tanggal_putusan).toLocaleDateString("id-ID", {
@@ -45,6 +46,8 @@ export default function DecisionCard({ data }: DecisionCardProps) {
     // BUG-18 FIX: Wrap in Link so the card is navigable
     <Link
       href={`/putusan/${slug}`}
+      target="_blank"
+      rel="noopener noreferrer"
       className="block bg-white border border-[var(--pajak-border)] rounded-2xl p-6 shadow-sm hover:border-[var(--pajak-primary)] hover:shadow-md transition-all h-[190px] w-full overflow-hidden"
     >
       <div className="flex h-full">
@@ -52,7 +55,7 @@ export default function DecisionCard({ data }: DecisionCardProps) {
         <div className="flex-[1.6] pr-6 border-r border-gray-100 flex flex-col justify-between">
           <div className="space-y-2">
             <h4 className="text-[var(--pajak-base)] font-bold text-[16px] leading-tight truncate uppercase tracking-tight">
-              {data.nomor_putusan_pp ?? data.nomor_putusan_pk ?? "Nomor tidak tersedia"}
+              {nomorDisplay}
             </h4>
             <p className="text-[13px] text-gray-800 font-semibold line-clamp-2">
               {data.pemohon ?? "—"}
