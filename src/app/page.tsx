@@ -1,22 +1,41 @@
 'use client';
 
-import { useState, KeyboardEvent, useMemo, useEffect } from 'react';
-import { Search, Filter, Plus, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { useState, KeyboardEvent, useMemo, useEffect, useCallback } from 'react';
+import { Search, Filter, X, ChevronLeft, ChevronRight } from "lucide-react";
 import Navbar from "../components/Navbar";
 import FilterModal from "../components/FilterModal";
 import DecisionCard from "../components/DecisionCard";
+
+interface PutusanListItem {
+  id: number;
+  nomor_putusan_pp?: string;
+  nomor_putusan_pk?: string;
+  pemohon?: string;
+  termohon?: string;
+  jenis_pajak?: string;
+  amar_putusan?: string;
+  upaya_hukum?: string;
+  tanggal_putusan?: string;
+  objek_sengketa?: string;
+  preview_sengketa?: string;
+}
+
+interface DashboardFilters {
+  status: string[];
+  jenisPajak: string[];
+  upayaHukum: string[];
+  pengadilan: string;
+  tahunPutusan: [number, number];
+  tahunPajak: [number, number];
+}
 
 export default function DashboardPage() {
   const [activeKeywords, setActiveKeywords] = useState<string[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-
-  // State untuk data dari PostgreSQL
-  const [data, setData] = useState<any[]>([]);
+  const [data, setData] = useState<PutusanListItem[]>([]);
   const [loading, setLoading] = useState(true);
-
-  // State Filter Modal
-  const [filters, setFilters] = useState({
+  const [filters, setFilters] = useState<DashboardFilters>({
     status: [] as string[],
     jenisPajak: [] as string[],
     upayaHukum: [] as string[],
@@ -24,13 +43,10 @@ export default function DashboardPage() {
     tahunPutusan: [2006, 2024],
     tahunPajak: [2006, 2024]
   });
-
-  // State Pagination
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 8; 
+  const itemsPerPage = 8;
 
-  // --- LOGIC FETCH DATA DARI POSTGRESQL (VIA API) ---
-  const fetchPutusan = async () => {
+  const fetchPutusan = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams({
@@ -46,42 +62,34 @@ export default function DashboardPage() {
         cache: 'no-store'
       });
       const result = await res.json();
-      
-      if (Array.isArray(result)) {
-        setData(result);
-      } else {
-        setData([]);
-      }
+      setData(Array.isArray(result) ? result : []);
     } catch (error) {
       console.error("Gagal load data dari database:", error);
       setData([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters, activeKeywords]);
 
   useEffect(() => {
     fetchPutusan();
-    setCurrentPage(1); 
-  }, [filters, activeKeywords]);
+    setCurrentPage(1);
+  }, [fetchPutusan]);
 
-  // --- LOGIC PAGINATION ---
   const totalPages = Math.ceil(data.length / itemsPerPage);
-  
+
   const currentData = useMemo(() => {
     const begin = (currentPage - 1) * itemsPerPage;
-    const end = begin + itemsPerPage;
-    return data.slice(begin, end);
+    return data.slice(begin, begin + itemsPerPage);
   }, [data, currentPage]);
 
-  // --- LOGIC STATISTIK ---
   const stats = useMemo(() => {
     const rawData = Array.isArray(data) ? data : [];
     const count = (val: string) => rawData.filter(item => item.amar_putusan === val).length;
 
     return {
       total: rawData.length,
-      kabulSeluruhnya: count('Mengabulkan Seluruhnya'),
+      kabulSeluruh: count('Mengabulkan Seluruhnya'),
       kabulSebagian: count('Mengabulkan Sebagian'),
       menolak: count('Menolak'),
       tidakDiterima: count('Tidak Dapat Diterima'),
@@ -99,77 +107,74 @@ export default function DashboardPage() {
     }
   };
 
+  const resetFilters = () => {
+    setActiveKeywords([]);
+    setFilters({
+      status: [],
+      jenisPajak: [],
+      upayaHukum: [],
+      pengadilan: 'MA',
+      tahunPutusan: [2006, 2024],
+      tahunPajak: [2006, 2024]
+    });
+  };
+
   return (
     <div className="min-h-screen bg-[var(--pajak-light)] pb-20 font-[family-name:var(--font-montserrat)]">
       <Navbar />
 
       <main className="max-w-[1440px] mx-auto p-8">
         <header className="mb-8">
-          <h1 className="text-4xl font-[family-name:var(--font-coolvetica)] text-[#000000] mb-2">
+          <h1 className="text-3xl font-[family-name:var(--font-coolvetica)] text-black mb-1">
             Dashboard Analisis Putusan Pajak
           </h1>
-          <h3 className="text-lg text-[#333333]">
-            PPh 26, PPh Badan, Transfer Pricing, Tax Treaty (P3B) - Transaksi Lintas Negara
-          </h3>
+          <p className="text-gray-500 text-sm font-medium">
+            Monitoring Transaksi Lintas Negara & Sengketa Pajak
+          </p>
         </header>
 
-        {/* Toolbar */}
-        <div className="flex items-center gap-4 mb-4">
-          <button 
+        <div className="flex items-center gap-3 mb-4">
+          <button
             onClick={() => setIsFilterOpen(true)}
-            className="flex items-center gap-2 bg-[var(--pajak-primary)] text-white px-5 py-2.5 rounded-lg font-[family-name:var(--font-coolvetica)] hover:brightness-110 transition-all shadow-sm"
+            className="flex items-center gap-2 bg-[var(--pajak-primary)] text-white px-5 py-2.5 rounded-xl font-bold hover:shadow-lg transition-all active:scale-95 shadow-sm"
           >
             <Filter size={18} />
             <span>Filter</span>
           </button>
 
           <div className="relative flex-1 group">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[var(--pajak-primary)]" size={20} />
-            <input 
-              type="text" 
+            <Search
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[var(--pajak-primary)] transition-colors"
+              size={18}
+            />
+            <input
+              type="text"
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Cari Nomor Putusan, Pemohon, atau Objek Sengketa..." 
-              className="w-full pl-12 pr-4 py-2.5 bg-white border border-[var(--pajak-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--pajak-primary)] text-sm shadow-sm"
+              placeholder="Cari Nomor Putusan atau Jenis Pajak (Enter)..."
+              className="w-full pl-11 pr-4 py-2.5 bg-white border border-[var(--pajak-border)] rounded-xl focus:ring-2 focus:ring-[var(--pajak-primary)] outline-none text-sm transition-all shadow-sm"
             />
           </div>
 
-          <div className="flex gap-2">
-            <button className="flex items-center gap-2 bg-white border border-[var(--pajak-border)] text-gray-700 px-4 py-2.5 rounded-lg text-sm font-semibold shadow-sm hover:bg-gray-50">
-              <Plus size={18} />
-              Tambah
-            </button>
-            <button 
-              onClick={() => {
-                setActiveKeywords([]);
-                setFilters({
-                  status: [], jenisPajak: [], upayaHukum: [],
-                  pengadilan: 'MA', tahunPutusan: [2006, 2024], tahunPajak: [2006, 2024]
-                });
-              }}
-              className="text-[var(--pajak-primary)] text-sm font-bold px-4 hover:underline"
-            >
-              Reset Filter
-            </button>
-          </div>
+          <button
+            onClick={resetFilters}
+            className="text-gray-400 text-xs font-bold hover:text-red-500 px-2 transition-colors"
+          >
+            Reset
+          </button>
         </div>
 
-        {/* Tags Section */}
-        <div className="flex flex-wrap gap-2 mb-8 min-h-[40px]">
+        <div className="flex flex-wrap gap-2 mb-8 min-h-[32px]">
           {activeKeywords.length > 0 ? (
             activeKeywords.map((tag) => (
-              <div key={tag} className="flex items-center gap-2 bg-[#0C81E4]/20 text-[var(--pajak-primary)] px-4 py-1.5 rounded-full text-xs font-bold">
+              <div
+                key={tag}
+                className="flex items-center gap-1.5 bg-white border border-[var(--pajak-primary)]/30 text-[var(--pajak-primary)] px-3 py-1 rounded-lg text-[11px] font-bold shadow-sm"
+              >
                 <span>{tag}</span>
-                <button 
-                  className="group p-1 rounded-md transition-colors hover:bg-red-50" 
-                  onClick={() => setActiveKeywords(activeKeywords.filter(k => k !== tag))}
-                >
-                  <X 
-                    size={14} 
-                    strokeWidth={3} 
-                    className="text-gray-400 group-hover:text-red-500 transition-colors" 
-                  />
+                <button onClick={() => setActiveKeywords(activeKeywords.filter((k) => k !== tag))}>
+                  <X size={12} className="hover:text-red-500" />
                 </button>
               </div>
             ))
@@ -178,103 +183,108 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* --- KPI & Chart Visualization Section --- */}
-        <div className="flex flex-col lg:flex-row gap-6 items-stretch mb-10">
-          {/* Enhanced KPI Cards Grid */}
-          <div className="flex-1 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 text-[var(--font-Montserrat)]">
-            <KPICard label="Total Putusan" value={stats.total} color="var(--pajak-primary)" />
-            <KPICard label="Kabul Seluruh" value={stats.kabulSeluruhnya} color="#10B981" />
-            <KPICard label="Kabul Sebagian" value={stats.kabulSebagian} color="#F59E0B" />
-            <KPICard label="Menolak" value={stats.menolak} color="#EF4444" />
-            <KPICard label="Tidak Diterima" value={stats.tidakDiterima} color="#6B7280" />
-            <KPICard label="Membatalkan" value={stats.membatalkan} color="#8B5CF6" />
-            <KPICard label="Lain-lain" value={stats.lainLain} color="#EC4899" />
+        <div className="flex flex-col lg:flex-row gap-4 items-stretch mb-10">
+          <div className="flex-[1.4] flex flex-col gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <KPICard label="Kabul Seluruh" value={stats.kabulSeluruh} color="#10B981" />
+              <KPICard label="Kabul Sebagian" value={stats.kabulSebagian} color="#F59E0B" />
+              <KPICard label="Menolak" value={stats.menolak} color="#EF4444" />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <KPICard label="Tidak Diterima" value={stats.tidakDiterima} color="#6B7280" />
+              <KPICard label="Membatalkan" value={stats.membatalkan} color="#8B5CF6" />
+              <KPICard label="Lain-lain" value={stats.lainLain} color="#0EA5E9" />
+            </div>
           </div>
 
-          {/* Interactive Chart with Hover Details */}
-          <div className="w-full lg:w-[320px] bg-white p-6 rounded-2xl border border-[var(--pajak-border)] shadow-[0px_4px_20px_var(--pajak-shadow)] flex items-end gap-2 justify-center relative group/chart">
-            <ChartBar value={stats.kabulSeluruhnya} total={stats.total} color="#10B981" label="Kabul Seluruh" />
-            <ChartBar value={stats.kabulSebagian} total={stats.total} color="#F59E0B" label="Kabul Sebagian" />
-            <ChartBar value={stats.menolak} total={stats.total} color="#EF4444" label="Menolak" />
-            <ChartBar value={stats.membatalkan} total={stats.total} color="#8B5CF6" label="Membatalkan" />
-            <ChartBar value={stats.lainLain} total={stats.total} color="#EC4899" label="Lain-lain" />
-            
-            <div className="absolute top-2 right-3 opacity-0 group-hover/chart:opacity-100 transition-opacity">
-              <span className="text-[9px] text-gray-400 font-bold uppercase italic">Hover bars for details</span>
+          <div className="flex-1 bg-white p-7 rounded-[32px] border border-[var(--pajak-border)] shadow-sm flex flex-col justify-between min-h-[224px]">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1.5">
+                  Total Putusan
+                </p>
+                <p className="text-5xl font-[family-name:var(--font-coolvetica)] text-gray-800 leading-none">
+                  {stats.total.toLocaleString('id-ID')}
+                </p>
+              </div>
+              <div className="text-[9px] font-bold text-gray-300 uppercase italic tracking-tighter">
+                Stats Visual
+              </div>
+            </div>
+
+            <div className="flex items-end gap-2.5 h-32 justify-center mt-6 px-1">
+              <ChartBar value={stats.kabulSeluruh} total={stats.total} color="#10B981" label="Kabul Seluruh" />
+              <ChartBar value={stats.kabulSebagian} total={stats.total} color="#F59E0B" label="Kabul Sebagian" />
+              <ChartBar value={stats.menolak} total={stats.total} color="#EF4444" label="Menolak" />
+              <ChartBar value={stats.tidakDiterima} total={stats.total} color="#6B7280" label="Tidak Diterima" />
+              <ChartBar value={stats.membatalkan} total={stats.total} color="#8B5CF6" label="Membatalkan" />
+              <ChartBar value={stats.lainLain} total={stats.total} color="#0EA5E9" label="Lain-lain" />
             </div>
           </div>
         </div>
 
-        {/* Data List */}
         <div className="space-y-4 mb-10">
-           <p className="text-sm font-bold text-gray-500">{loading ? "Memuat data..." : `${data.length} Putusan Ditemukan`}</p>
-           
-           {loading ? (
-             <div className="grid grid-cols-2 gap-6 animate-pulse">
-                {[...Array(4)].map((_, i) => (
-                  <div key={i} className="h-[165px] bg-gray-200 rounded-2xl"></div>
-                ))}
-             </div>
-           ) : currentData.length > 0 ? (
-             <div className="grid grid-cols-2 gap-6">
-               {currentData.map((putusan: any) => (
-                 <DecisionCard key={putusan.id} data={putusan} />
-               ))}
-             </div>
-           ) : (
-             <div className="bg-white p-20 rounded-2xl border border-dashed border-gray-300 text-center text-gray-400">
-                Tidak ada data yang sesuai dengan filter di database.
-             </div>
-           )}
+          <p className="text-sm font-bold text-gray-500">
+            {loading ? "Memuat data..." : `${data.length} Putusan Ditemukan`}
+          </p>
+
+          {loading ? (
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 animate-pulse">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="h-[165px] bg-gray-200 rounded-2xl"></div>
+              ))}
+            </div>
+          ) : currentData.length > 0 ? (
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+              {currentData.map((putusan) => (
+                <DecisionCard key={putusan.id} data={putusan} />
+              ))}
+            </div>
+          ) : (
+            <div className="bg-white p-20 rounded-2xl border border-dashed border-gray-300 text-center text-gray-400">
+              Tidak ada data yang sesuai dengan filter di database.
+            </div>
+          )}
         </div>
 
-        {/* Pagination */}
         {!loading && totalPages > 1 && (
-          <div className="flex justify-center items-center gap-4 mt-12 text-sm">
-            <button 
-              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+          <div className="flex justify-center items-center gap-10 mt-14">
+            <button
+              onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
               disabled={currentPage === 1}
-              className="p-2 rounded-lg bg-gray-100 disabled:opacity-30 hover:bg-gray-200"
+              className="p-2 disabled:opacity-20 hover:bg-gray-100 rounded-full transition-all"
             >
-              <ChevronLeft size={20} />
+              <ChevronLeft />
             </button>
-            
-            <div className="flex items-center gap-2">
-              <span className="bg-[var(--pajak-shadow)] text-white px-3 py-1 rounded-md font-bold">{currentPage}</span>
-              <span className="text-gray-400">of</span>
-              <span className="font-bold">{totalPages}</span>
-            </div>
-
-            <button 
-              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+            <span className="text-sm font-bold text-gray-600">
+              Halaman <span className="text-[var(--pajak-primary)] text-xl mx-1">{currentPage}</span> dari {totalPages}
+            </span>
+            <button
+              onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
               disabled={currentPage === totalPages}
-              className="p-2 rounded-lg bg-gray-100 disabled:opacity-30 hover:bg-gray-200"
+              className="p-2 disabled:opacity-20 hover:bg-gray-100 rounded-full transition-all"
             >
-              <ChevronRight size={20} />
+              <ChevronRight />
             </button>
           </div>
         )}
 
-        <FilterModal 
-          isOpen={isFilterOpen} 
-          onClose={() => setIsFilterOpen(false)} 
-          onApplyFilter={(newFilters: any) => setFilters(newFilters)}
+        <FilterModal
+          isOpen={isFilterOpen}
+          onClose={() => setIsFilterOpen(false)}
+          onApplyFilter={(newFilters: DashboardFilters) => setFilters(newFilters)}
         />
       </main>
     </div>
   );
 }
 
-// --- Sub-components with Hover Effects ---
-
-const KPICard = ({ label, value, color }: { label: string; value: number; color: string }) => (
-  <div 
-    className="bg-white p-6 rounded-2xl border-l-[8px] shadow-[0px_6px_15px_var(--pajak-shadow)] flex flex-col justify-center transition-transform hover:scale-105 duration-200"
+const KPICard = ({ label, value = 0, color }: { label: string; value?: number; color: string }) => (
+  <div
+    className="bg-white rounded-[24px] border-l-[6px] p-5 h-[104px] flex flex-col justify-center shadow-sm transition-all hover:shadow-md"
     style={{ borderColor: color }}
   >
-    <p className="text-[10px] uppercase tracking-wider font-black text-gray-400 mb-2 leading-tight">
-      {label}
-    </p>
+    <p className="text-[10px] uppercase font-black text-gray-400 mb-1 leading-tight tracking-tight">{label}</p>
     <p className="text-3xl font-[family-name:var(--font-coolvetica)] text-gray-800 leading-none">
       {value.toLocaleString('id-ID')}
     </p>
@@ -283,26 +293,24 @@ const KPICard = ({ label, value, color }: { label: string; value: number; color:
 
 const ChartBar = ({ value, total, color, label }: { value: number; total: number; color: string; label: string }) => {
   const percentage = total > 0 ? (value / total) * 100 : 0;
-  const barHeight = Math.max(percentage, 8); // Minimum visibility
+  const barHeight = Math.max(percentage, 4);
 
   return (
-    <div className="relative flex-1 flex flex-col items-center group/bar h-full justify-end">
-      {/* Tooltip Content */}
-      <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-[10px] px-3 py-1.5 rounded-lg opacity-0 group-hover/bar:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-20 shadow-xl">
-        <div className="font-bold border-b border-gray-700 pb-1 mb-1">{label}</div>
-        <div>{value.toLocaleString('id-ID')} <span className="text-gray-400">({percentage.toFixed(1)}%)</span></div>
-        {/* Tooltip Arrow */}
+    <div className="flex-1 flex flex-col justify-end group relative h-full">
+      <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-[10px] px-2.5 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 whitespace-nowrap z-20 transition-all pointer-events-none shadow-2xl scale-90 group-hover:scale-100">
+        <span className="font-bold">{label}:</span> {value.toLocaleString('id-ID')}
         <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-gray-900 rotate-45"></div>
       </div>
-      
-      <div 
-        className="w-full rounded-t-md transition-all duration-700 ease-out hover:brightness-125 cursor-help"
-        style={{ 
-          height: `${barHeight}%`, 
+      <div
+        className="w-full rounded-t-xl transition-all duration-1000 ease-out hover:brightness-110 cursor-help relative"
+        style={{
+          height: `${barHeight}%`,
           backgroundColor: color,
-          boxShadow: `0 -4px 12px ${color}44` 
+          boxShadow: `0 -4px 15px ${color}33`
         }}
-      ></div>
+      >
+        <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity rounded-t-xl"></div>
+      </div>
     </div>
   );
 };
