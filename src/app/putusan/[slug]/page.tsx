@@ -1,5 +1,6 @@
 "use client";
 
+import "react-pdf/dist/Page/TextLayer.css";
 import { useParams, useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
@@ -16,17 +17,7 @@ import {
   Calendar,
   Globe,
 } from "lucide-react";
-
-// ── react-pdf dimuat hanya di client (hindari DOMMatrix SSR error) ─────────────
-const ReactPDF = dynamic(
-  () =>
-    import("react-pdf").then((mod) => {
-      mod.pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${mod.pdfjs.version}/build/pdf.worker.min.mjs`;
-      return mod;
-    }),
-  { ssr: false },
-);
-
+import "react-pdf/dist/Page/TextLayer.css";
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface PutusanRow {
   nomor_putusan_pp: string;
@@ -209,37 +200,45 @@ function PartyCard({
   );
 }
 
-// ── PDF Modal (client-only) ───────────────────────────────────────────────────
-function PdfModal({
-  namaFile,
-  onClose,
-}: {
-  namaFile: string;
-  onClose: () => void;
-}) {
+// Only the PdfModal component shown — the rest of the page is unchanged
+
+function PdfModal({ namaFile, onClose }: { namaFile: string; onClose: () => void }) {
   const [numPages, setNumPages] = useState<number>(0);
   const [pdfMod, setPdfMod] = useState<any>(null);
+  // BUG-07 FIX: Use ref to track the URL for cleanup, avoiding stale closure
+  const blobUrlRef = useRef<string | null>(null);
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    // Load react-pdf
-    import("react-pdf").then((mod) => {
-      mod.pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${mod.pdfjs.version}/build/pdf.worker.min.mjs`;
-      setPdfMod(mod);
-    });
-    import("react-pdf/dist/Page/AnnotationLayer.css" as any);
-    import("react-pdf/dist/Page/TextLayer.css" as any);
+    let cancelled = false;
 
-    // Fetch PDF as blob → hindari IDM intercept
+    import("react-pdf").then((mod) => {
+      mod.pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs"; // ← ubah ini
+      if (!cancelled) setPdfMod(mod);
+    });
+
     fetch(`/api/pdf/${encodeURIComponent(namaFile)}`)
-      .then((res) => res.blob())
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.blob();
+      })
       .then((blob) => {
+        if (cancelled) return;
         const url = URL.createObjectURL(blob);
+        blobUrlRef.current = url; // store in ref
         setBlobUrl(url);
+      })
+      .catch((err) => {
+        console.error("Failed to load PDF:", err);
       });
 
     return () => {
-      if (blobUrl) URL.revokeObjectURL(blobUrl);
+      cancelled = true;
+      // BUG-07 FIX: Revoke via ref — always has the current URL value
+      if (blobUrlRef.current) {
+        URL.revokeObjectURL(blobUrlRef.current);
+        blobUrlRef.current = null;
+      }
     };
   }, [namaFile]);
 
@@ -248,61 +247,33 @@ function PdfModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl h-[90vh] flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200 shrink-0">
-          <div className="flex items-center gap-2">
-            <FileText size={14} className="text-[var(--pajak-primary)]" />
-            <span
-              className="text-sm text-gray-700 truncate max-w-[400px]"
-              style={{ fontFamily: "var(--font-coolvetica)" }}
-            >
-              {namaFile}
-            </span>
-          </div>
+        {/* header */}
+        <div className="flex items-center justify-between px-5 py-3 border-b shrink-0">
+          <span className="text-sm text-gray-700 truncate max-w-[400px]">{namaFile}</span>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors"
+            className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center"
           >
-            <X size={14} className="text-gray-600" />
+            <X size={14} />
           </button>
         </div>
+        {/* body */}
         <div className="flex-1 overflow-y-auto flex flex-col items-center bg-gray-100 p-4 gap-4">
           {!Document || !blobUrl ? (
-            <div
-              className="flex items-center justify-center h-40 text-gray-400"
-              style={{ fontFamily: "var(--font-coolvetica)" }}
-            >
-              Memuat PDF…
-            </div>
+            <div className="flex items-center justify-center h-40 text-gray-400">Memuat PDF…</div>
           ) : (
             <Document
               file={blobUrl}
-              onLoadSuccess={({ numPages }: { numPages: number }) =>
-                setNumPages(numPages)
-              }
-              loading={
-                <div
-                  className="flex items-center justify-center h-40 text-gray-400"
-                  style={{ fontFamily: "var(--font-coolvetica)" }}
-                >
-                  Memuat PDF…
-                </div>
-              }
-              error={
-                <div
-                  className="flex items-center justify-center h-40 text-red-400"
-                  style={{ fontFamily: "var(--font-coolvetica)" }}
-                >
-                  Gagal memuat PDF.
-                </div>
-              }
+              onLoadSuccess={({ numPages }: { numPages: number }) => setNumPages(numPages)}
             >
               {Array.from({ length: numPages }, (_, i) => (
                 <Page
-                  key={i + 1}
-                  pageNumber={i + 1}
-                  width={800}
-                  className="shadow-md mb-2"
-                />
+  key={i + 1}
+  pageNumber={i + 1}
+  width={800}
+  className="shadow-md mb-2"
+  renderAnnotationLayer={false}
+/>
               ))}
             </Document>
           )}
@@ -311,6 +282,7 @@ function PdfModal({
     </div>
   );
 }
+
 // ── Tab contents ──────────────────────────────────────────────────────────────
 function RingkasanTab({ d }: { d: PutusanRow }) {
   const hakimAnggota = parseHakim(d.hakim_anggota);

@@ -1,93 +1,106 @@
-import { NextResponse } from 'next/server';
-import { Pool } from 'pg';
+// src/app/api/putusan/route.ts
+import { NextRequest, NextResponse } from "next/server";
+import { query } from "../../../lib/db";
+import { errorResponse, ValidationError } from "../../..//lib/errors";
 
-const pool = new Pool({
-  host: process.env.DB_HOST || "127.0.0.1",
-  database: process.env.DB_NAME || "KAPHA_db",
-  user: process.env.DB_USER || "KAPHikmahArief",
-  password: process.env.DB_PASSWORD || process.env.DB_PASS || "KAPHA_secret_2026",
-  port: 5432,
-});
+function isValidParam(val: string | null): val is string {
+  return Boolean(
+    val &&
+      val.trim() !== "" &&
+      val !== "[]" &&
+      val !== "all" &&
+      val !== "undefined" &&
+      val !== "null"
+  );
+}
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const { searchParams } = new URL(request.url);
-    
-    const isValid = (val: string | null) => {
-      return val && val.trim() !== "" && val !== "[]" && val !== "all" && val !== "undefined" && val !== "null";
-    };
 
-    const status = searchParams.get('status');
-    const jenisPajak = searchParams.get('jenisPajak');
-    const upayaHukum = searchParams.get('upayaHukum');
-    const pengadilan = searchParams.get('pengadilan');
-    const tahunPutusan = searchParams.get('tahunPutusan');
-    const search = searchParams.get('search');
+    const status = searchParams.get("status");
+    const jenisPajak = searchParams.get("jenisPajak");
+    const upayaHukum = searchParams.get("upayaHukum");
+    const pengadilan = searchParams.get("pengadilan");
+    const tahunPutusan = searchParams.get("tahunPutusan");
+    const search = searchParams.get("search");
 
-    let query = 'SELECT * FROM putusan_pajak WHERE 1=1';
-    const values: any[] = [];
+    // Validate search length to prevent DoS
+    if (search && search.length > 200) {
+      throw new ValidationError("Search query too long (max 200 characters)");
+    }
 
-    // 1. Filter Status (Multi-select fix)
-    if (isValid(status)) {
-      const arr = status!.split(',').filter(Boolean).map(s => s.trim());
+    const conditions: string[] = ["1=1"];
+    const values: unknown[] = [];
+
+    function addParam(value: unknown): string {
+      values.push(value);
+      return `$${values.length}`;
+    }
+
+    if (isValidParam(status)) {
+      const arr = status.split(",").map((s) => s.trim()).filter(Boolean);
       if (arr.length > 0) {
-        values.push(arr);
-        // Menggunakan ANY agar mencari salah satu dari pilihan (OR logic dalam array)
-        query += ` AND amar_putusan = ANY($${values.length}::text[])`;
+        conditions.push(`amar_putusan = ANY(${addParam(arr)}::text[])`);
       }
     }
 
-    // 2. Filter Jenis Pajak (Multi-select fix)
-    if (isValid(jenisPajak)) {
-      const arr = jenisPajak!.split(',').filter(Boolean).map(p => p.trim());
+    if (isValidParam(jenisPajak)) {
+      const arr = jenisPajak.split(",").map((p) => p.trim()).filter(Boolean);
       if (arr.length > 0) {
-        values.push(arr);
-        query += ` AND jenis_pajak = ANY($${values.length}::text[])`;
+        conditions.push(`jenis_pajak = ANY(${addParam(arr)}::text[])`);
       }
     }
 
-    // 3. Filter Upaya Hukum
-    if (isValid(upayaHukum)) {
-      const arr = upayaHukum!.split(',').filter(Boolean).map(u => u.trim());
+    if (isValidParam(upayaHukum)) {
+      const arr = upayaHukum.split(",").map((u) => u.trim()).filter(Boolean);
       if (arr.length > 0) {
-        values.push(arr);
-        query += ` AND upaya_hukum = ANY($${values.length}::text[])`;
+        conditions.push(`upaya_hukum = ANY(${addParam(arr)}::text[])`);
       }
     }
 
-    // 4. Filter Pengadilan (Fix: Case-Insensitive & Partial Match)
-      if (isValid(pengadilan) && pengadilan !== 'Semua') {
-    const trimmed = (pengadilan ?? '').trim();
-    values.push(`%${trimmed}%`);
-    query += ` AND pengadilan ILIKE $${values.length}`;
-  }
+    if (isValidParam(pengadilan) && pengadilan !== "Semua") {
+      conditions.push(`pengadilan ILIKE ${addParam(`%${pengadilan.trim()}%`)}`);
+    }
 
-    // 5. Filter Tahun
-    if (isValid(tahunPutusan) && tahunPutusan!.includes(',')) {
-      const [start, end] = tahunPutusan!.split(',');
-      if (start !== '2006' || end !== '2024') {
-        values.push(`${start}-01-01`);
-        const sIdx = values.length;
-        values.push(`${end}-12-31`);
-        const eIdx = values.length;
-        query += ` AND tanggal_putusan BETWEEN $${sIdx} AND $${eIdx}`;
+    if (isValidParam(tahunPutusan) && tahunPutusan.includes(",")) {
+      const [startRaw, endRaw] = tahunPutusan.split(",");
+      const start = parseInt(startRaw, 10);
+      const end = parseInt(endRaw, 10);
+      const YEAR_MIN = 1990;
+      const YEAR_MAX = new Date().getFullYear() + 1;
+
+      if (isNaN(start) || isNaN(end) || start < YEAR_MIN || end > YEAR_MAX || start > end) {
+        throw new ValidationError(`Invalid tahunPutusan range: ${tahunPutusan}`);
+      }
+
+      // Only filter if not the full default range
+      if (start !== 2006 || end !== 2024) {
+        conditions.push(`tanggal_putusan BETWEEN ${addParam(`${start}-01-01`)} AND ${addParam(`${end}-12-31`)}`);
       }
     }
 
-    // 6. Global Search
-    if (isValid(search)) {
-      values.push(`%${search}%`);
-      const idx = values.length;
-      query += ` AND (nomor_putusan_pp ILIKE $${idx} OR pemohon ILIKE $${idx} OR objek_sengketa ILIKE $${idx})`;
+    if (isValidParam(search)) {
+      const searchParam = addParam(`%${search.trim()}%`);
+      conditions.push(
+        `(nomor_putusan_pp ILIKE ${searchParam} OR pemohon ILIKE ${searchParam} OR objek_sengketa ILIKE ${searchParam})`
+      );
     }
 
-    query += ' ORDER BY tanggal_putusan DESC';
+    const sql = `
+      SELECT
+        id, nomor_putusan_pp, nomor_putusan_pk, pemohon, termohon,
+        jenis_pajak, amar_putusan, upaya_hukum, tanggal_putusan,
+        objek_sengketa, preview_sengketa
+      FROM putusan_pajak
+      WHERE ${conditions.join(" AND ")}
+      ORDER BY tanggal_putusan DESC
+      LIMIT 1000
+    `;
 
-    const result = await pool.query(query, values);
+    const result = await query(sql, values);
     return NextResponse.json(result.rows);
-    
-  } catch (err: any) {
-    console.error("Database Error:", err.message);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  } catch (err) {
+    return errorResponse(err);
   }
 }
