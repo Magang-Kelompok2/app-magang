@@ -10,13 +10,13 @@ export default function AppPage() {
   return (
     <ChatProvider>
       <div
-        className="min-h-screen bg-[var(--pajak-light)]"
+        className="min-h-screen bg-(--pajak-light)]"
         style={{ fontFamily: "var(--font-montserrat)" }}
       >
         <Navbar />
 
         <main
-          className="max-w-[1440px] mx-auto px-8 pt-8 pb-0 flex flex-col"
+          className="max-w-360 mx-auto px-8 pt-8 pb-0 flex flex-col"
           style={{ height: "calc(100vh - 64px)" }}
         >
           {/* Header */}

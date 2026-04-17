@@ -2,11 +2,11 @@ version: '3.8'
 
 services:
   postgres:
-    image: pgvector/pgvector:pg16  # ✅ BENAR - pgvector sudah ada
+    image: pgvector/pgvector:pg16  
     container_name: kapha-postgres
     restart: unless-stopped
     ports:
-      - "5433:5432"
+      - "5434:5432"
     volumes:
       - kapha_pgdata:/var/lib/postgresql/data
     healthcheck:

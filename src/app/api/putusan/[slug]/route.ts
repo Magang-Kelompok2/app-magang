@@ -3,10 +3,10 @@ import { Pool } from "pg";
 
 const pool = new Pool({
   host: process.env.DB_HOST || "127.0.0.1",
-  database: process.env.DB_NAME || "KAPHA_db",
-  user: process.env.DB_USER || "KAPHikmahArief",
-  password: process.env.DB_PASSWORD || process.env.DB_PASS || "KAPHA_secret_2026",
-  port: 5432,
+  database: process.env.DB_NAME || "alpha123",
+  user: process.env.DB_USER || "alpha123",
+  password: process.env.DB_PASSWORD || process.env.DB_PASS || "alpha123",
+  port: 5433,
 });
 
 export async function GET(
