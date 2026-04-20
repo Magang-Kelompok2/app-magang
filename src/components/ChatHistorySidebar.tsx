@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, MessageSquare, Trash2, Clock } from "lucide-react";
+import { Plus, MessageSquare, Trash2, Clock, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { useChatContext, ChatSession } from "../context/ChatContext";
 
 function relativeTime(iso: string): string {
@@ -37,17 +37,15 @@ function SessionItem({
           : "hover:bg-gray-100 border border-transparent"}`}
       onClick={onLoad}
     >
-      {/* Icon */}
       <MessageSquare
         size={14}
         className={`shrink-0 mt-0.5 ${isActive ? "text-[var(--pajak-primary)]" : "text-gray-400"}`}
       />
-
-      {/* Text */}
       <div className="flex-1 min-w-0">
-        <p className={`text-xs font-semibold leading-snug truncate
-          ${isActive ? "text-[var(--pajak-primary)]" : "text-gray-700"}`}
-          style={{ fontFamily: "var(--font-montserrat)" }}>
+        <p
+          className={`text-xs font-semibold leading-snug truncate ${isActive ? "text-[var(--pajak-primary)]" : "text-gray-700"}`}
+          style={{ fontFamily: "var(--font-montserrat)" }}
+        >
           {sess.title}
         </p>
         <div className="flex items-center gap-1.5 mt-0.5">
@@ -57,8 +55,6 @@ function SessionItem({
           <span className="text-[10px] text-gray-400">{msgCount} pesan</span>
         </div>
       </div>
-
-      {/* Delete button */}
       {hovered && (
         <button
           onClick={(e) => { e.stopPropagation(); onDelete(); }}
@@ -71,34 +67,99 @@ function SessionItem({
   );
 }
 
-export default function ChatHistorySidebar() {
-  const { activeId, history, newChat, loadSession, deleteSession, clearActive } = useChatContext();
-  const [confirmClear, setConfirmClear] = useState(false);
+interface Props {
+  collapsed: boolean;
+  onToggle: () => void;
+}
 
-  // Kelompokkan per hari
+export default function ChatHistorySidebar({ collapsed, onToggle }: Props) {
+  const { activeId, history, newChat, loadSession, deleteSession } = useChatContext();
+
   const grouped: { label: string; items: ChatSession[] }[] = [];
-  const now   = new Date();
-  const today = now.toDateString();
+  const now       = new Date();
+  const today     = now.toDateString();
   const yesterday = new Date(now.getTime() - 86400000).toDateString();
 
   history.forEach((sess) => {
     const d = new Date(sess.updatedAt).toDateString();
-    const label = d === today ? "Hari ini" : d === yesterday ? "Kemarin" : relativeTime(sess.updatedAt).includes("hari") ? relativeTime(sess.updatedAt) : new Date(sess.updatedAt).toLocaleDateString("id-ID", { day: "numeric", month: "long" });
+    const label =
+      d === today ? "Hari ini" :
+      d === yesterday ? "Kemarin" :
+      relativeTime(sess.updatedAt).includes("hari") ? relativeTime(sess.updatedAt) :
+      new Date(sess.updatedAt).toLocaleDateString("id-ID", { day: "numeric", month: "long" });
     const existing = grouped.find((g) => g.label === label);
     if (existing) existing.items.push(sess);
     else grouped.push({ label, items: [sess] });
   });
 
-  return (
-    <aside className="w-60 shrink-0 flex flex-col bg-white border-r border-[var(--pajak-border)] h-full overflow-hidden">
-      {/* Header */}
-      <div className="shrink-0 px-4 pt-4 pb-3 border-b border-[var(--pajak-border)]">
-        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-3"
-          style={{ fontFamily: "var(--font-montserrat)" }}>
-          Riwayat Chat
-        </p>
+  // ── Collapsed: strip tipis dengan icon saja ──
+  if (collapsed) {
+    return (
+      <aside
+        className="shrink-0 flex flex-col items-center gap-3 py-4 bg-white h-full"
+        style={{
+          width: "56px",
+          borderRight: "1px solid var(--pajak-border)",
+          transition: "width 0.2s ease",
+        }}
+      >
+        {/* Toggle */}
+        <button
+          onClick={onToggle}
+          title="Buka sidebar"
+          className="w-9 h-9 rounded-xl flex items-center justify-center text-gray-400 hover:bg-gray-100 hover:text-[var(--pajak-primary)] transition-all"
+        >
+          <PanelLeftOpen size={17} />
+        </button>
 
         {/* New chat */}
+        <button
+          onClick={newChat}
+          title="Chat baru"
+          className="w-9 h-9 rounded-xl flex items-center justify-center bg-[var(--pajak-primary)] hover:brightness-110 text-white transition-all shadow-sm"
+        >
+          <Plus size={16} />
+        </button>
+
+        {/* Active session dot */}
+        {activeId && (
+          <div className="w-2 h-2 rounded-full bg-[var(--pajak-primary)] mt-1" title="Ada sesi aktif" />
+        )}
+      </aside>
+    );
+  }
+
+  // ── Expanded ──
+  return (
+    <aside
+      className="shrink-0 flex flex-col bg-white h-full overflow-hidden"
+      style={{
+        width: "240px",
+        borderRight: "1px solid var(--pajak-border)",
+        transition: "width 0.2s ease",
+      }}
+    >
+      {/* Header */}
+      <div
+        className="shrink-0 px-4 pt-4 pb-3"
+        style={{ borderBottom: "1px solid var(--pajak-border)" }}
+      >
+        <div className="flex items-center justify-between mb-3">
+          <p
+            className="text-[11px] font-bold text-gray-400 uppercase tracking-widest"
+            style={{ fontFamily: "var(--font-montserrat)" }}
+          >
+            Riwayat Chat
+          </p>
+          <button
+            onClick={onToggle}
+            title="Tutup sidebar"
+            className="w-6 h-6 rounded-lg flex items-center justify-center text-gray-400 hover:bg-gray-100 hover:text-[var(--pajak-primary)] transition-all"
+          >
+            <PanelLeftClose size={14} />
+          </button>
+        </div>
+
         <button
           onClick={newChat}
           className="w-full flex items-center justify-center gap-2 bg-[var(--pajak-primary)] hover:brightness-110 text-white text-xs font-semibold py-2 px-3 rounded-xl transition-all"
@@ -122,8 +183,10 @@ export default function ChatHistorySidebar() {
         ) : (
           grouped.map(({ label, items }) => (
             <div key={label} className="mb-2">
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-3 py-1.5"
-                style={{ fontFamily: "var(--font-montserrat)" }}>
+              <p
+                className="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-3 py-1.5"
+                style={{ fontFamily: "var(--font-montserrat)" }}
+              >
                 {label}
               </p>
               {items.map((sess) => (
@@ -137,36 +200,6 @@ export default function ChatHistorySidebar() {
               ))}
             </div>
           ))
-        )}
-      </div>
-
-      {/* Footer — clear active */}
-      <div className="shrink-0 px-3 py-3 border-t border-[var(--pajak-border)]">
-        {!confirmClear ? (
-          <button
-            onClick={() => setConfirmClear(true)}
-            className="w-full flex items-center justify-center gap-1.5 text-[11px] text-gray-400 hover:text-red-500 hover:bg-red-50 py-1.5 rounded-lg transition-all"
-            style={{ fontFamily: "var(--font-montserrat)" }}
-          >
-            <Trash2 size={11} />
-            Hapus chat sekarang
-          </button>
-        ) : (
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-[11px] text-red-500 font-semibold" style={{ fontFamily: "var(--font-montserrat)" }}>
-              Yakin hapus?
-            </span>
-            <div className="flex gap-1.5">
-              <button onClick={async () => { await clearActive(); setConfirmClear(false); }}
-                className="text-[11px] font-bold text-white bg-red-500 hover:bg-red-600 px-2 py-0.5 rounded-md transition-colors">
-                Ya
-              </button>
-              <button onClick={() => setConfirmClear(false)}
-                className="text-[11px] font-semibold text-gray-500 hover:text-gray-700 px-1">
-                Batal
-              </button>
-            </div>
-          </div>
         )}
       </div>
     </aside>

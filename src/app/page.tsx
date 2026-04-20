@@ -44,6 +44,35 @@ interface DashboardResponse {
   stats?: Partial<DashboardStats>;
 }
 
+const DEFAULT_FILTERS: DashboardFilters = {
+  status: [],
+  jenisPajak: [],
+  upayaHukum: [],
+  pengadilan: 'Semua',
+  tahunPutusan: [2006, 2024],
+  tahunPajak: [2006, 2024],
+};
+
+const LS_FILTERS_KEY = 'kapha_dashboard_filters_v1';
+const LS_KEYWORDS_KEY = 'kapha_dashboard_keywords_v1';
+
+function loadFromStorage<T>(key: string, fallback: T): T {
+  if (typeof window === 'undefined') return fallback;
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function saveToStorage(key: string, value: unknown) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch { /* quota exceeded or SSR */ }
+}
+
 export default function DashboardPage() {
   const [activeKeywords, setActiveKeywords] = useState<string[]>([]);
   const [inputValue, setInputValue] = useState("");
@@ -59,16 +88,30 @@ export default function DashboardPage() {
     membatalkan: 0,
     lainnya: 0,
   });
-  const [filters, setFilters] = useState<DashboardFilters>({
-    status: [] as string[],
-    jenisPajak: [] as string[],
-    upayaHukum: [] as string[],
-    pengadilan: 'Semua',
-    tahunPutusan: [2006, 2024],
-    tahunPajak: [2006, 2024]
-  });
+  const [filters, setFilters] = useState<DashboardFilters>(DEFAULT_FILTERS);
   const [currentPage, setCurrentPage] = useState(1);
+  const [hydrated, setHydrated] = useState(false);
   const itemsPerPage = 8;
+
+  // Hydrate from localStorage on mount
+  useEffect(() => {
+    const savedFilters = loadFromStorage<DashboardFilters>(LS_FILTERS_KEY, DEFAULT_FILTERS);
+    const savedKeywords = loadFromStorage<string[]>(LS_KEYWORDS_KEY, []);
+    setFilters(savedFilters);
+    setActiveKeywords(savedKeywords);
+    setHydrated(true);
+  }, []);
+
+  // Persist filters & keywords whenever they change (after hydration)
+  useEffect(() => {
+    if (!hydrated) return;
+    saveToStorage(LS_FILTERS_KEY, filters);
+  }, [filters, hydrated]);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    saveToStorage(LS_KEYWORDS_KEY, activeKeywords);
+  }, [activeKeywords, hydrated]);
 
   const fetchPutusan = useCallback(async () => {
     setLoading(true);
@@ -114,12 +157,34 @@ export default function DashboardPage() {
     }
   }, [filters, activeKeywords]);
 
+  // Fetch only after hydration so we use correct persisted state
   useEffect(() => {
+    if (!hydrated) return;
     fetchPutusan();
     setCurrentPage(1);
-  }, [fetchPutusan]);
+  }, [fetchPutusan, hydrated]);
 
   const totalPages = Math.ceil(data.length / itemsPerPage);
+
+  const activeFilterBadges = useMemo(() => {
+    const badges: { label: string; onRemove: () => void }[] = [];
+    filters.status.forEach((s) =>
+      badges.push({ label: `Status: ${s}`, onRemove: () => setFilters((f) => ({ ...f, status: f.status.filter((x) => x !== s) })) })
+    );
+    filters.jenisPajak.forEach((p) =>
+      badges.push({ label: `Pajak: ${p}`, onRemove: () => setFilters((f) => ({ ...f, jenisPajak: f.jenisPajak.filter((x) => x !== p) })) })
+    );
+    filters.upayaHukum.forEach((u) =>
+      badges.push({ label: `Upaya: ${u}`, onRemove: () => setFilters((f) => ({ ...f, upayaHukum: f.upayaHukum.filter((x) => x !== u) })) })
+    );
+    if (filters.pengadilan !== 'Semua')
+      badges.push({ label: `Pengadilan: ${filters.pengadilan}`, onRemove: () => setFilters((f) => ({ ...f, pengadilan: 'Semua' })) });
+    if (filters.tahunPutusan[0] !== 2006 || filters.tahunPutusan[1] !== 2024)
+      badges.push({ label: `Thn Putusan: ${filters.tahunPutusan[0]}–${filters.tahunPutusan[1]}`, onRemove: () => setFilters((f) => ({ ...f, tahunPutusan: [2006, 2024] })) });
+    if (filters.tahunPajak[0] !== 2006 || filters.tahunPajak[1] !== 2024)
+      badges.push({ label: `Thn Pajak: ${filters.tahunPajak[0]}–${filters.tahunPajak[1]}`, onRemove: () => setFilters((f) => ({ ...f, tahunPajak: [2006, 2024] })) });
+    return badges;
+  }, [filters]);
 
   const currentData = useMemo(() => {
     const begin = (currentPage - 1) * itemsPerPage;
@@ -137,14 +202,10 @@ export default function DashboardPage() {
 
   const resetFilters = () => {
     setActiveKeywords([]);
-    setFilters({
-      status: [],
-      jenisPajak: [],
-      upayaHukum: [],
-      pengadilan: 'Semua',
-      tahunPutusan: [2006, 2024],
-      tahunPajak: [2006, 2024]
-    });
+    setFilters(DEFAULT_FILTERS);
+    // Also clear localStorage so refresh shows full data
+    saveToStorage(LS_FILTERS_KEY, DEFAULT_FILTERS);
+    saveToStorage(LS_KEYWORDS_KEY, []);
   };
 
   return (
@@ -157,17 +218,22 @@ export default function DashboardPage() {
             Dashboard Analisis Putusan Pajak
           </h1>
           <p className="text-gray-500 text-sm font-medium">
-            Monitoring Transaksi Lintas Negara & Sengketa Pajak
+            Monitoring Transaksi Lintas Negara &amp; Sengketa Pajak
           </p>
         </header>
 
         <div className="flex items-center gap-3 mb-4">
           <button
             onClick={() => setIsFilterOpen(true)}
-            className="flex items-center gap-2 bg-[var(--pajak-primary)] text-white px-5 py-2.5 rounded-xl font-bold hover:shadow-lg transition-all active:scale-95 shadow-sm"
+            className="relative flex items-center gap-2 bg-[var(--pajak-primary)] text-white px-5 py-2.5 rounded-xl font-bold hover:shadow-lg transition-all active:scale-95 shadow-sm"
           >
             <Filter size={18} />
             <span>Filter</span>
+            {activeFilterBadges.length > 0 && (
+              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow">
+                {activeFilterBadges.length}
+              </span>
+            )}
           </button>
 
           <div className="relative flex-1 group">
@@ -194,19 +260,29 @@ export default function DashboardPage() {
         </div>
 
         <div className="flex flex-wrap gap-2 mb-8 min-h-[32px]">
-          {activeKeywords.length > 0 ? (
-            activeKeywords.map((tag) => (
-              <div
-                key={tag}
-                className="flex items-center gap-1.5 bg-white border border-[var(--pajak-primary)]/30 text-[var(--pajak-primary)] px-3 py-1 rounded-lg text-[11px] font-bold shadow-sm"
-              >
-                <span>{tag}</span>
-                <button onClick={() => setActiveKeywords(activeKeywords.filter((k) => k !== tag))}>
-                  <X size={12} className="hover:text-red-500" />
-                </button>
-              </div>
-            ))
-          ) : (
+          {activeFilterBadges.map((badge) => (
+            <div
+              key={badge.label}
+              className="flex items-center gap-1.5 bg-orange-50 border border-orange-300 text-orange-700 px-3 py-1 rounded-lg text-[11px] font-bold shadow-sm"
+            >
+              <span>{badge.label}</span>
+              <button onClick={badge.onRemove}>
+                <X size={12} className="hover:text-red-500" />
+              </button>
+            </div>
+          ))}
+          {activeKeywords.map((tag) => (
+            <div
+              key={tag}
+              className="flex items-center gap-1.5 bg-white border border-[var(--pajak-primary)]/30 text-[var(--pajak-primary)] px-3 py-1 rounded-lg text-[11px] font-bold shadow-sm"
+            >
+              <span>{tag}</span>
+              <button onClick={() => setActiveKeywords(activeKeywords.filter((k) => k !== tag))}>
+                <X size={12} className="hover:text-red-500" />
+              </button>
+            </div>
+          ))}
+          {activeFilterBadges.length === 0 && activeKeywords.length === 0 && (
             <p className="text-gray-400 text-xs italic mt-2">Belum ada kata kunci yang diterapkan.</p>
           )}
         </div>
@@ -298,6 +374,7 @@ export default function DashboardPage() {
           isOpen={isFilterOpen}
           onClose={() => setIsFilterOpen(false)}
           onApplyFilter={(newFilters: DashboardFilters) => setFilters(newFilters)}
+          initialFilters={filters}
         />
       </main>
     </div>
