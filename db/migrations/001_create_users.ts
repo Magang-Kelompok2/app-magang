@@ -22,7 +22,7 @@ async function migrate() {
       updated_at  TIMESTAMP DEFAULT NOW()
     )
   `);
-  console.log("✅ Migration berhasil! Tabel users sudah dibuat.");
+  console.log("Migration berhasil! Tabel users sudah dibuat.");
   await pool.end();
 }
 

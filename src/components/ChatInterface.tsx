@@ -118,31 +118,34 @@ function Bubble({ msg }: { msg: ChatMessage }) {
       </div>
 
       <div className={`max-w-[78%] flex flex-col gap-1.5 ${isUser ? "items-end" : "items-start"}`}>
-        <div
-          className={`relative group px-4 py-3 rounded-2xl text-sm leading-relaxed
-            ${isUser
-              ? "bg-[var(--pajak-primary)] text-white rounded-tr-sm"
-              : "bg-white border border-[var(--pajak-border)] text-gray-800 rounded-tl-sm shadow-sm"}`}
-          style={{ fontFamily: "var(--font-montserrat)" }}
-        >
-          {isUser ? (
+        {isUser ? (
+          <div
+            className="px-4 py-3 rounded-2xl text-sm leading-relaxed bg-[var(--pajak-primary)] text-white rounded-tr-sm"
+            style={{ fontFamily: "var(--font-montserrat)" }}
+          >
             <span className="whitespace-pre-wrap">{msg.content}</span>
-          ) : (
-            <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
-              {msg.content}
-            </ReactMarkdown>
-          )}
-
-          {/* Copy button — muncul saat hover, hanya untuk AI */}
-          {!isUser && (
-            <button
-              onClick={handleCopy}
-              className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-all w-7 h-7 bg-white border border-[var(--pajak-border)] rounded-lg shadow-sm flex items-center justify-center hover:border-[var(--pajak-primary)] hover:text-[var(--pajak-primary)] text-gray-400"
+          </div>
+        ) : (
+          <div className="relative group">
+            {/* Sticky copy button — stays visible while scrolling through long bubbles */}
+            <div className="sticky top-3 z-10 h-0 flex justify-end pr-2 pointer-events-none">
+              <button
+                onClick={handleCopy}
+                className="pointer-events-auto opacity-0 group-hover:opacity-100 transition-all w-7 h-7 bg-white border border-[var(--pajak-border)] rounded-lg shadow-sm flex items-center justify-center hover:border-[var(--pajak-primary)] hover:text-[var(--pajak-primary)] text-gray-400 translate-y-2"
+              >
+                {copied ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
+              </button>
+            </div>
+            <div
+              className="px-4 py-3 rounded-2xl text-sm leading-relaxed bg-white border border-[var(--pajak-border)] text-gray-800 rounded-tl-sm shadow-sm"
+              style={{ fontFamily: "var(--font-montserrat)" }}
             >
-              {copied ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
-            </button>
-          )}
-        </div>
+              <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
+                {msg.content}
+              </ReactMarkdown>
+            </div>
+          </div>
+        )}
 
         {msg.sources && msg.sources.length > 0 && (
           <div className="w-full">

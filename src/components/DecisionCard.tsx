@@ -59,18 +59,18 @@ export default function DecisionCard({ data }: DecisionCardProps) {
             </h4>
             <p className="text-[13px] text-gray-800 font-semibold line-clamp-2">
               {data.pemohon ?? "—"}
-              <span className="text-gray-400 font-black mx-1">VS</span>
+              <span className="text-[var(--pajak-primary)] font-black mx-1 text-[11px] tracking-widest">VS</span>
               {data.termohon ?? "—"}
             </p>
           </div>
           <div className="flex flex-wrap gap-2 mt-auto">
-            <Badge label={data.jenis_pajak ?? "—"} />
+            {data.jenis_pajak && <Badge label={data.jenis_pajak} />}
             <Badge
               label={data.amar_putusan ?? "Lain-lain"}
               className={getStatusStyle(data.amar_putusan ?? "")}
             />
-            <Badge label={data.upaya_hukum ?? "—"} />
-            <Badge label={formattedDate} />
+            {data.upaya_hukum && <Badge label={data.upaya_hukum} />}
+            {data.tanggal_putusan && <Badge label={formattedDate} />}
           </div>
         </div>
 

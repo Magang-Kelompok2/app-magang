@@ -2,6 +2,8 @@ import localFont from "next/font/local";
 import { Montserrat } from "next/font/google";
 import "./globals.css";
 import type { Metadata } from "next";
+import Providers from "@/components/Providers";
+import ConditionalNavbar from "@/components/ConditionalNavbar";
 
 export const metadata: Metadata = {
   title: "Sistem Analisis Putusan Pajak",
@@ -32,7 +34,14 @@ export default function RootLayout({
     <html lang="en">
       {/* 3. Masukkan variabel font ke body agar bisa diakses CSS/Tailwind */}
       <body className={`${montserrat.variable} ${coolvetica.variable} antialiased`}>
-        {children}
+        <Providers>
+          <div className="flex flex-col h-screen overflow-hidden">
+            <ConditionalNavbar />
+            <main className="flex-1 overflow-y-auto flex flex-col">
+              {children}
+            </main>
+          </div>
+        </Providers>
       </body>
     </html>
   );

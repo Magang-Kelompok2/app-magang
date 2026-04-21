@@ -2,7 +2,6 @@
 
 import { useState, KeyboardEvent, useMemo, useEffect, useCallback } from 'react';
 import { Search, Filter, X, ChevronLeft, ChevronRight } from "lucide-react";
-import Navbar from "../components/Navbar";
 import FilterModal from "../components/FilterModal";
 import DecisionCard from "../components/DecisionCard";
 
@@ -210,16 +209,24 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-[var(--pajak-light)] pb-20 font-[family-name:var(--font-montserrat)]">
-      <Navbar />
-
       <main className="max-w-[1440px] mx-auto p-8">
-        <header className="mb-8">
-          <h1 className="text-3xl font-[family-name:var(--font-coolvetica)] text-black mb-1">
-            Dashboard Analisis Putusan Pajak
-          </h1>
-          <p className="text-gray-500 text-sm font-medium">
-            Monitoring Transaksi Lintas Negara &amp; Sengketa Pajak
-          </p>
+        <header className="mb-8 flex items-end justify-between flex-wrap gap-3">
+          <div>
+            <h1 className="text-3xl font-[family-name:var(--font-coolvetica)] text-black mb-1">
+              Dashboard Analisis Putusan Pajak
+            </h1>
+            <p className="text-gray-500 text-sm font-medium">
+              Transfer Pricing · P3B · BUT · PPh Badan · PPh 26
+            </p>
+          </div>
+          {!loading && (
+            <div className="text-right shrink-0">
+              <p className="text-2xl font-[family-name:var(--font-coolvetica)] text-[var(--pajak-primary)] leading-none">
+                {totalItems.toLocaleString('id-ID')}
+              </p>
+              <p className="text-xs text-gray-400 font-medium mt-0.5">putusan tersedia</p>
+            </div>
+          )}
         </header>
 
         <div className="flex items-center gap-3 mb-4">
@@ -251,19 +258,22 @@ export default function DashboardPage() {
             />
           </div>
 
-          <button
-            onClick={resetFilters}
-            className="text-gray-400 text-xs font-bold hover:text-red-500 px-2 transition-colors"
-          >
-            Reset
-          </button>
+          {(activeFilterBadges.length > 0 || activeKeywords.length > 0) && (
+            <button
+              onClick={resetFilters}
+              className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-red-500 border border-[var(--pajak-border)] hover:border-red-200 bg-white px-3 py-2.5 rounded-xl transition-all shadow-sm"
+            >
+              <X size={13} />
+              Reset
+            </button>
+          )}
         </div>
 
         <div className="flex flex-wrap gap-2 mb-8 min-h-[32px]">
           {activeFilterBadges.map((badge) => (
             <div
               key={badge.label}
-              className="flex items-center gap-1.5 bg-orange-50 border border-orange-300 text-orange-700 px-3 py-1 rounded-lg text-[11px] font-bold shadow-sm"
+              className="flex items-center gap-1.5 bg-[var(--pajak-primary)]/8 border border-[var(--pajak-primary)]/25 text-[var(--pajak-primary)] px-3 py-1 rounded-lg text-[11px] font-bold shadow-sm"
             >
               <span>{badge.label}</span>
               <button onClick={badge.onRemove}>
@@ -282,22 +292,19 @@ export default function DashboardPage() {
               </button>
             </div>
           ))}
-          {activeFilterBadges.length === 0 && activeKeywords.length === 0 && (
-            <p className="text-gray-400 text-xs italic mt-2">Belum ada kata kunci yang diterapkan.</p>
-          )}
         </div>
 
         <div className="flex flex-col lg:flex-row gap-4 items-stretch mb-10">
           <div className="flex-[1.4] flex flex-col gap-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <KPICard label="Kabul Seluruh" value={stats.mengabulkan_seluruhnya} color="#10B981" />
-              <KPICard label="Kabul Sebagian" value={stats.mengabulkan_sebagian} color="#F59E0B" />
-              <KPICard label="Menolak" value={stats.menolak} color="#EF4444" />
+              <KPICard label="Kabul Seluruh" value={stats.mengabulkan_seluruhnya} total={totalItems} color="#10B981" />
+              <KPICard label="Kabul Sebagian" value={stats.mengabulkan_sebagian} total={totalItems} color="#F59E0B" />
+              <KPICard label="Menolak" value={stats.menolak} total={totalItems} color="#EF4444" />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <KPICard label="Tidak Diterima" value={stats.tidak_dapat_diterima} color="#6B7280" />
-              <KPICard label="Membatalkan" value={stats.membatalkan} color="#8B5CF6" />
-              <KPICard label="Lainnya" value={stats.lainnya} color="#0EA5E9" />
+              <KPICard label="Tidak Diterima" value={stats.tidak_dapat_diterima} total={totalItems} color="#6B7280" />
+              <KPICard label="Membatalkan" value={stats.membatalkan} total={totalItems} color="#8B5CF6" />
+              <KPICard label="Lainnya" value={stats.lainnya} total={totalItems} color="#0EA5E9" />
             </div>
           </div>
 
@@ -314,12 +321,12 @@ export default function DashboardPage() {
             </div>
 
             <div className="flex items-end gap-2.5 h-32 justify-center mt-6 px-1">
-              <ChartBar value={stats.mengabulkan_seluruhnya} total={totalItems} color="#10B981" label="Kabul Seluruh" />
-              <ChartBar value={stats.mengabulkan_sebagian} total={totalItems} color="#F59E0B" label="Kabul Sebagian" />
-              <ChartBar value={stats.menolak} total={totalItems} color="#EF4444" label="Menolak" />
-              <ChartBar value={stats.tidak_dapat_diterima} total={totalItems} color="#6B7280" label="Tidak Diterima" />
-              <ChartBar value={stats.membatalkan} total={totalItems} color="#8B5CF6" label="Membatalkan" />
-              <ChartBar value={stats.lainnya} total={totalItems} color="#0EA5E9" label="Lainnya" />
+              <ChartBar value={stats.mengabulkan_seluruhnya} total={totalItems} color="#10B981" label="Kabul Seluruh" shortLabel="Kabul" />
+              <ChartBar value={stats.mengabulkan_sebagian} total={totalItems} color="#F59E0B" label="Kabul Sebagian" shortLabel="Sebagian" />
+              <ChartBar value={stats.menolak} total={totalItems} color="#EF4444" label="Menolak" shortLabel="Tolak" />
+              <ChartBar value={stats.tidak_dapat_diterima} total={totalItems} color="#6B7280" label="Tidak Diterima" shortLabel="Tdk Diterima" />
+              <ChartBar value={stats.membatalkan} total={totalItems} color="#8B5CF6" label="Membatalkan" shortLabel="Batal" />
+              <ChartBar value={stats.lainnya} total={totalItems} color="#0EA5E9" label="Lainnya" shortLabel="Lainnya" />
             </div>
           </div>
         </div>
@@ -330,13 +337,13 @@ export default function DashboardPage() {
           </p>
 
           {loading ? (
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 animate-pulse">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 animate-pulse">
               {[...Array(4)].map((_, i) => (
                 <div key={i} className="h-[165px] bg-gray-200 rounded-2xl"></div>
               ))}
             </div>
           ) : currentData.length > 0 ? (
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
               {currentData.map((putusan) => (
                 <DecisionCard key={putusan.id} data={putusan} />
               ))}
@@ -349,24 +356,66 @@ export default function DashboardPage() {
         </div>
 
         {!loading && totalPages > 1 && (
-          <div className="flex justify-center items-center gap-10 mt-14">
-            <button
-              onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-              disabled={currentPage === 1}
-              className="p-2 disabled:opacity-20 hover:bg-gray-100 rounded-full transition-all"
-            >
-              <ChevronLeft />
-            </button>
-            <span className="text-sm font-bold text-gray-600">
-              Halaman <span className="text-[var(--pajak-primary)] text-xl mx-1">{currentPage}</span> dari {totalPages}
-            </span>
-            <button
-              onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
-              disabled={currentPage === totalPages}
-              className="p-2 disabled:opacity-20 hover:bg-gray-100 rounded-full transition-all"
-            >
-              <ChevronRight />
-            </button>
+          <div className="flex flex-col items-center gap-2 mt-14">
+            <div className="flex items-center gap-1">
+              {/* Prev */}
+              <button
+                onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+                disabled={currentPage === 1}
+                className="w-9 h-9 flex items-center justify-center rounded-xl border border-[var(--pajak-border)] bg-white text-gray-500 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+              >
+                <ChevronLeft size={15} />
+              </button>
+
+              {/* Page numbers with ellipsis */}
+              {(() => {
+                const pages: (number | 'ellipsis')[] = [];
+                if (totalPages <= 7) {
+                  for (let i = 1; i <= totalPages; i++) pages.push(i);
+                } else {
+                  pages.push(1);
+                  if (currentPage > 4) pages.push('ellipsis');
+                  const start = Math.max(2, currentPage - 2);
+                  const end   = Math.min(totalPages - 1, currentPage + 2);
+                  for (let i = start; i <= end; i++) pages.push(i);
+                  if (currentPage < totalPages - 3) pages.push('ellipsis');
+                  pages.push(totalPages);
+                }
+                return pages.map((p, i) =>
+                  p === 'ellipsis' ? (
+                    <span key={`e${i}`} className="w-9 h-9 flex items-center justify-center text-gray-400 text-sm select-none">
+                      ···
+                    </span>
+                  ) : (
+                    <button
+                      key={p}
+                      onClick={() => setCurrentPage(p)}
+                      className="w-9 h-9 flex items-center justify-center rounded-xl text-sm font-semibold transition-all"
+                      style={
+                        currentPage === p
+                          ? { background: 'var(--pajak-primary)', color: '#fff' }
+                          : { background: '#fff', color: '#6B7280', border: '1px solid var(--pajak-border)' }
+                      }
+                    >
+                      {p}
+                    </button>
+                  )
+                );
+              })()}
+
+              {/* Next */}
+              <button
+                onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                className="w-9 h-9 flex items-center justify-center rounded-xl border border-[var(--pajak-border)] bg-white text-gray-500 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+              >
+                <ChevronRight size={15} />
+              </button>
+            </div>
+
+            <p className="text-xs text-gray-400">
+              Menampilkan {((currentPage - 1) * itemsPerPage) + 1}–{Math.min(currentPage * itemsPerPage, totalItems)} dari {totalItems.toLocaleString('id-ID')} putusan
+            </p>
           </div>
         )}
 
@@ -381,38 +430,52 @@ export default function DashboardPage() {
   );
 }
 
-const KPICard = ({ label, value = 0, color }: { label: string; value?: number; color: string }) => (
-  <div
-    className="bg-white rounded-[24px] border-l-[6px] p-5 h-[104px] flex flex-col justify-center shadow-sm transition-all hover:shadow-md"
-    style={{ borderColor: color }}
-  >
-    <p className="text-[10px] uppercase font-black text-gray-400 mb-1 leading-tight tracking-tight">{label}</p>
-    <p className="text-3xl font-[family-name:var(--font-coolvetica)] text-gray-800 leading-none">
-      {value.toLocaleString('id-ID')}
-    </p>
-  </div>
-);
+const KPICard = ({ label, value = 0, total = 0, color }: { label: string; value?: number; total?: number; color: string }) => {
+  const pct = total > 0 ? ((value / total) * 100).toFixed(1) : null;
+  return (
+    <div
+      className="bg-white rounded-[24px] border-l-[6px] px-5 py-4 h-[104px] flex flex-col justify-between shadow-sm transition-all hover:shadow-md"
+      style={{ borderColor: color }}
+    >
+      <p className="text-[10px] uppercase font-black text-gray-400 leading-tight tracking-tight">{label}</p>
+      <div className="flex items-end justify-between">
+        <p className="text-3xl font-[family-name:var(--font-coolvetica)] text-gray-800 leading-none">
+          {value.toLocaleString('id-ID')}
+        </p>
+        {pct && (
+          <span className="text-[11px] font-bold mb-0.5 tabular-nums" style={{ color }}>
+            {pct}%
+          </span>
+        )}
+      </div>
+    </div>
+  );
+};
 
-const ChartBar = ({ value, total, color, label }: { value: number; total: number; color: string; label: string }) => {
+const ChartBar = ({ value, total, color, label, shortLabel }: { value: number; total: number; color: string; label: string; shortLabel: string }) => {
   const percentage = total > 0 ? (value / total) * 100 : 0;
   const barHeight = Math.max(percentage, 4);
 
   return (
-    <div className="flex-1 flex flex-col justify-end group relative h-full">
+    <div className="flex-1 flex flex-col items-center justify-end group relative h-full">
+      {/* Tooltip */}
       <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-[10px] px-2.5 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 whitespace-nowrap z-20 transition-all pointer-events-none shadow-2xl scale-90 group-hover:scale-100">
         <span className="font-bold">{label}:</span> {value.toLocaleString('id-ID')}
-        <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-gray-900 rotate-45"></div>
+        <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-gray-900 rotate-45" />
       </div>
-      <div
-        className="w-full rounded-t-xl transition-all duration-1000 ease-out hover:brightness-110 cursor-help relative"
-        style={{
-          height: `${barHeight}%`,
-          backgroundColor: color,
-          boxShadow: `0 -4px 15px ${color}33`
-        }}
-      >
-        <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity rounded-t-xl"></div>
+      {/* Bar */}
+      <div className="w-full flex flex-col justify-end" style={{ height: 'calc(100% - 20px)' }}>
+        <div
+          className="w-full rounded-t-lg transition-all duration-1000 ease-out hover:brightness-110 cursor-help relative"
+          style={{ height: `${barHeight}%`, backgroundColor: color, boxShadow: `0 -3px 10px ${color}40` }}
+        >
+          <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity rounded-t-lg" />
+        </div>
       </div>
+      {/* Label below bar */}
+      <p className="text-[9px] font-bold text-gray-400 mt-1 truncate w-full text-center leading-tight">
+        {shortLabel}
+      </p>
     </div>
   );
 };

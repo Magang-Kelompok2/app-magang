@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Navbar from "../../components/Navbar";
 import ChatInterface from "../../components/ChatInterface";
 import ChatHistorySidebar from "../../components/ChatHistorySidebar";
 import PanduanModal from "../../components/PanduanModal";
@@ -14,18 +13,14 @@ export default function AppPage() {
   return (
     <ChatProvider>
       <div
-        className="flex flex-col"
+        className="flex flex-col h-full"
         style={{
-          height: "100dvh",
           fontFamily: "var(--font-montserrat)",
           background: "var(--pajak-light)",
         }}
       >
-        <Navbar />
-
         <div
           className="flex flex-1 min-h-0"
-          style={{ height: "calc(100dvh - 64px)" }}
         >
           {/* ── Sidebar ── */}
           <ChatHistorySidebar

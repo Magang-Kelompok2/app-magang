@@ -8,6 +8,7 @@ import {
   FileText,
   X,
   Scale,
+  Gavel,
   BookOpen,
   Landmark,
   Coins,
@@ -20,7 +21,6 @@ import {
   Download,
   ChevronLeft,
 } from "lucide-react";
-import Navbar from "../../../components/Navbar";
 
 interface PutusanRow {
   nomor_putusan_pp: string;
@@ -122,23 +122,14 @@ function escapeHtml(value: string): string {
 }
 
 function highlightText(text: string, keyword: string): string {
-  const safeText = escapeHtml(text);
   if (!keyword.trim()) {
-    return `<span style="color: transparent;">${safeText}</span>`;
+    return `<span style="color: transparent;">${escapeHtml(text)}</span>`;
   }
-
-  const pattern = new RegExp(`(${escapeRegExp(keyword)})`, "gi");
-  const parts = text.split(pattern);
-
-  return parts
-    .map((part) => {
-      const safePart = escapeHtml(part);
-      if (part.match(pattern)) {
-        return `<mark style="color: transparent; background: rgba(250, 204, 21, 0.28); border-radius: 3px; box-shadow: inset 0 -0.35em 0 rgba(250, 204, 21, 0.32);">${safePart}</mark>`;
-      }
-      return `<span style="color: transparent;">${safePart}</span>`;
-    })
-    .join("");
+  const pattern = new RegExp(escapeRegExp(keyword), "gi");
+  if (pattern.test(text)) {
+    return `<mark style="color: transparent; background: rgba(250, 204, 21, 0.38); border-radius: 2px; box-shadow: inset 0 -0.3em 0 rgba(250, 204, 21, 0.4);">${escapeHtml(text)}</mark>`;
+  }
+  return `<span style="color: transparent;">${escapeHtml(text)}</span>`;
 }
 
 function getStatusConfig(amar: string) {
@@ -173,7 +164,7 @@ function parseHakim(raw?: string | string[]): string[] {
 }
 
 function formatCurrency(val?: string | number): string {
-  if (val == null || val === "") return "-";
+  if (val == null || val === "" || String(val).trim().toLowerCase() === "null") return "-";
   const num = typeof val === "number" ? val : parseInt(String(val).replace(/\D/g, ""), 10);
   if (isNaN(num)) return String(val);
   return "Rp " + num.toLocaleString("id-ID");
@@ -207,7 +198,7 @@ function InfoPill({
 }) {
   return (
     <div
-      className="flex items-center gap-3 rounded-2xl px-4 py-3 border"
+      className="w-full flex items-center gap-3 rounded-2xl px-4 py-3 border"
       style={{ background: `${color}0d`, borderColor: `${color}30` }}
     >
       <div
@@ -615,7 +606,7 @@ function AmarTab({
           className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0"
           style={{ backgroundColor: statusConfig.color + "20" }}
         >
-          <Scale size={24} style={{ color: statusConfig.color }} />
+          <Gavel size={24} style={{ color: statusConfig.color }} />
         </div>
         <div>
           <p
@@ -625,8 +616,8 @@ function AmarTab({
             Status Putusan Akhir
           </p>
           <p
-            className="text-3xl font-black leading-none"
-            style={{ color: statusConfig.color, fontFamily: "var(--font-coolvetica)" }}
+            className="text-3xl font-extrabold leading-none tracking-wide"
+            style={{ color: statusConfig.color, fontFamily: "var(--font-montserrat)" }}
           >
             {(d.amar_putusan ?? "").toUpperCase()}
           </p>
@@ -692,13 +683,11 @@ export default function PutusanDetailPage() {
         <PdfModal namaFile={data.nama_file} onClose={() => setShowPdf(false)} />
       )}
 
-      <Navbar />
-
       <div className="max-w-[1440px] mx-auto px-8 py-8">
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 mb-6">
           <button
-            onClick={() => router.back()}
+            onClick={() => router.push('/')}
             className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-[#0C81E4] transition-colors font-medium"
             style={{ fontFamily: "var(--font-montserrat)" }}
           >
@@ -754,27 +743,28 @@ export default function PutusanDetailPage() {
                   >
                     {labels.nomor}
                   </p>
-                  <h1
-                    className="text-[#0C4E8C] leading-tight break-words"
-                    style={{ fontFamily: "var(--font-coolvetica)", fontSize: "clamp(1.55rem, 3vw, 2.25rem)" }}
-                  >
-                    {nomorDisplay}
-                  </h1>
+                  <div className="flex items-center gap-3 flex-wrap mt-1">
+                    <h1
+                      className="text-[#0C4E8C] leading-tight break-words"
+                      style={{ fontFamily: "var(--font-coolvetica)", fontSize: "clamp(1.55rem, 3vw, 2.25rem)" }}
+                    >
+                      {nomorDisplay}
+                    </h1>
+                    <span
+                      className="text-sm px-4 py-1.5 rounded-full font-bold border shrink-0"
+                      style={{
+                        backgroundColor: statusConfig.badgeBg,
+                        color: statusConfig.color,
+                        borderColor: statusConfig.border,
+                        fontFamily: "var(--font-montserrat)",
+                      }}
+                    >
+                      {data.amar_putusan}
+                    </span>
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-3 shrink-0">
-                  <span
-                    className="text-sm px-4 py-1.5 rounded-full font-bold border"
-                    style={{
-                      backgroundColor: statusConfig.badgeBg,
-                      color: statusConfig.color,
-                      borderColor: statusConfig.border,
-                      fontFamily: "var(--font-montserrat)",
-                    }}
-                  >
-                    {data.amar_putusan}
-                  </span>
-
                   <button
                     onClick={() => setShowPdf(true)}
                     disabled={!data.nama_file}
@@ -818,7 +808,7 @@ export default function PutusanDetailPage() {
               <div className="h-px bg-gray-100 my-4" />
 
               {/* Info pills */}
-              <div className="flex flex-wrap gap-3">
+              <div className={`grid gap-3 ${data.negara_lawan_transaksi ? "grid-cols-2 sm:grid-cols-3 xl:grid-cols-6" : "grid-cols-2 sm:grid-cols-3 xl:grid-cols-5"}`}>
                 <InfoPill icon={<Coins size={14} />} label="Jenis Pajak" value={display(data.jenis_pajak)} color="#0C81E4" />
                 <InfoPill icon={<BookOpen size={14} />} label="Upaya Hukum" value={display(data.upaya_hukum)} color="#11C4D4" />
                 <InfoPill icon={<Landmark size={14} />} label="Pengadilan" value={display(data.pengadilan)} color="#4FE7AF" />
@@ -868,7 +858,7 @@ export default function PutusanDetailPage() {
             {/* Back button */}
             <div className="flex justify-center mt-6 mb-2">
               <button
-                onClick={() => router.back()}
+                onClick={() => router.push('/')}
                 className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-5 py-2.5 text-sm font-medium text-gray-600 hover:border-[#0C81E4] hover:text-[#0C81E4] transition-all shadow-sm"
                 style={{ fontFamily: "var(--font-montserrat)" }}
               >
