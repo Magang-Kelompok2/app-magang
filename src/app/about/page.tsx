@@ -1,61 +1,70 @@
 import Link from "next/link";
+import Image from "next/image";
+import { Brain, ChartNoAxesCombined, FileCodeCorner, Scale } from 'lucide-react';
 
 const MEMBERS = [
   {
     name: "Muhammad Muflih Affandi",
-    role: "Ketua",
+    role: "Data Architect",
     email: "affanart645@gmail.com",
     linkedin: "muhmaffandi",
     github: "MuhammadAffandi24",
     isLeader: true,
+    profilePicture: "/apanjempol.jpeg"
   },
   {
     name: "Muhammad Althafino",
-    role: "Wakil Ketua",
+    role: "Full Stack Developer",
     email: "malthafino36@gmail.com",
     linkedin: "althafino",
     github: "ZerefAintDie",
     isLeader: false,
+    profilePicture: "/pino.jpeg"
   },
   {
     name: "Farhan Wegig Pramudito",
-    role: "Wakil Ketua",
+    role: "AI Engineer",
     email: "tios00123@gmail.com",
     linkedin: "farhan-wegig-pramudito-90499a346",
     github: "FarhanWegigP",
     isLeader: false,
+    profilePicture: "/tio.jpeg"
   },
   {
     name: "Vriska Diah Novita Sari",
-    role: "Bendahara",
+    role: "UI/UX",
     email: "vriskadiahnovitasari@gmail.com",
     linkedin: "vriskadiahns",
     github: "Vriskadiahns",
     isLeader: false,
+    profilePicture: "/vriskajempol.jpeg"
   },
   {
     name: "Berliana Syifa Maharani",
-    role: "Bendahara",
+    role: "Data Annotation",
     email: "berlianasyifa9@gmail.com",
     linkedin: "berliana-syifa-maharani",
     github: "Berlianaa27",
     isLeader: false,
+    profilePicture: "/berli.jpeg"
   },
   {
     name: "Risquina Angelica Arvintyani",
-    role: "Sekretaris",
+    role: "Data Preparation",
     email: "risquinaangelicaa@gmail.com",
     linkedin: "risquina-angelica-arvintyani",
     github: "Risquinaangelica",
     isLeader: false,
+    profilePicture: "/angeljempol.jpeg"
   },
   {
     name: "Regina Aurellia Tsaqif",
-    role: "Sekretaris",
+    role: "Business Analyst",
     email: "reginaaurelliaa@gmail.com",
-    linkedin: "reginaaureliatsaqif",
+    linkedin: "reginaaurelliatsaqif",
     github: "regiregina",
     isLeader: false,
+    profilePicture: "/regina.jpeg"
   },
 ];
 
@@ -65,7 +74,7 @@ const AVATAR_COLORS = [
   "from-[#4FE7AF] to-[#11C4D4]",
   "from-[#0C4E8C] to-[#11C4D4]",
   "from-[#0C81E4] to-[#4FE7AF]",
-  "from-[#11C4D4] to-[#0C4E8C]",
+  "from-[#11C4D4] to-[#0C81E4]",
   "from-[#4FE7AF] to-[#0C81E4]",
 ];
 
@@ -80,8 +89,8 @@ function getInitials(name: string) {
 
 function Eyebrow({ children }: { children: React.ReactNode }) {
   return (
-    <p className="inline-flex items-center gap-2 text-[11px] font-semibold tracking-[0.18em] uppercase text-[var(--pajak-primary)]">
-      <span className="w-6 h-px bg-[var(--pajak-primary)]" />
+    <p className="inline-flex items-center gap-2 text-[11px] font-semibold tracking-[0.18em] uppercase text-(--pajak-primary)">
+      <span className="w-6 h-px bg-(--pajak-primary)" />
       {children}
     </p>
   );
@@ -136,17 +145,28 @@ function MemberCard({
         </span>
       )}
 
+      {/* Avatar Container dengan Logika Foto Profil */}
       <div
-        className={`relative bg-gradient-to-br ${AVATAR_COLORS[index % AVATAR_COLORS.length]} rounded-full flex items-center justify-center text-white font-bold shrink-0 ring-4 ring-white shadow-lg ${
+        className={`relative overflow-hidden bg-white rounded-full border border-[var(--pajak-border)] shadow-[0_1px_2px_rgba(12,78,140,0.04)] p-8 flex flex-col items-center text-center hover:shadow-[0_16px_40px_-16px_rgba(12,78,140,0.3)] hover:border-[var(--pajak-primary)] hover:-translate-y-1 transition-all duration-300 overflow-hidden ring-4 ring-white shadow-lg ${
           isLarge ? "w-24 h-24 text-3xl mb-4" : "w-14 h-14 text-lg"
         }`}
       >
-        {getInitials(member.name)}
+        {member.profilePicture ? (
+          <Image
+            src={member.profilePicture}
+            alt={member.name}
+            fill
+            className="object-cover"
+            sizes="(max-width: 768px) 100vw, 96px"
+          />
+        ) : (
+          getInitials(member.name)
+        )}
       </div>
 
       <div className={`min-w-0 ${isLarge ? "w-full" : "flex-1"}`}>
         <h3
-          className={`font-title text-[var(--pajak-base)] leading-tight ${
+          className={`font-title tracking-wide text-[var(--pajak-base)] leading-tight ${
             isLarge ? "text-2xl mb-1.5" : "text-base mb-0.5 font-semibold"
           }`}
         >
@@ -154,12 +174,8 @@ function MemberCard({
         </h3>
         <span
           className={`inline-block px-3 py-0.5 rounded-full text-xs font-semibold mb-3 ${
-            member.role === "Ketua"
+            member.isLeader
               ? "bg-[var(--pajak-base)] text-white"
-              : member.role === "Wakil Ketua"
-              ? "bg-[var(--pajak-primary)]/10 text-[var(--pajak-primary)]"
-              : member.role === "Bendahara"
-              ? "bg-[var(--pajak-secondary)]/15 text-[var(--pajak-base)]"
               : "bg-[var(--pajak-tertiary)]/20 text-[var(--pajak-base)]"
           }`}
         >
@@ -206,10 +222,8 @@ export default function AboutPage() {
     <div className="min-h-full bg-[var(--pajak-light)]">
       {/* ── 1. HERO ────────────────────────────────────────────────────── */}
       <section className="relative bg-[var(--pajak-base)] overflow-hidden">
-        {/* Soft glow blobs */}
         <div className="absolute -top-32 -right-20 w-[28rem] h-[28rem] rounded-full bg-[var(--pajak-primary)] opacity-25 blur-3xl" />
         <div className="absolute -bottom-24 -left-24 w-[22rem] h-[22rem] rounded-full bg-[var(--pajak-secondary)] opacity-20 blur-3xl" />
-        {/* Subtle grid */}
         <div
           className="absolute inset-0 opacity-[0.06]"
           style={{
@@ -242,7 +256,7 @@ export default function AboutPage() {
             <h2 className="font-title text-4xl md:text-5xl text-[var(--pajak-base)] mt-4 mb-6 leading-tight tracking-tight">
               Program Magang Berdampak
             </h2>
-            <div className="border-l-4 border-[var(--pajak-primary)] pl-5">
+            <div className="border-l-4 text-justify border-[var(--pajak-primary)] pl-5">
               <p className="text-gray-600 leading-relaxed text-[15px]">
                 Kegiatan Hibah MBKM UNS adalah program pendanaan yang
                 diselenggarakan oleh Universitas Sebelas Maret (UNS) untuk
@@ -300,7 +314,7 @@ export default function AboutPage() {
                 />
                 <div className="relative">
                   <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-white/15 border border-white/20 backdrop-blur-sm text-3xl mb-5">
-                    ⚖️
+                    <Scale className="w-8 h-8"/>
                   </div>
                   <h3 className="font-title text-3xl mb-3 tracking-tight">Alpha Project</h3>
                   <p className="text-blue-100/90 text-[15px] leading-relaxed">
@@ -308,7 +322,7 @@ export default function AboutPage() {
                     pajak Indonesia.
                   </p>
                   <div className="mt-7 flex flex-wrap gap-2">
-                    {["NLP", "Data Science", "KAP Hikman & Arief"].map((tag) => (
+                    {["NLP", "Data Science", "MHCorp"].map((tag) => (
                       <span
                         key={tag}
                         className="px-3 py-1 rounded-full bg-white/15 border border-white/20 text-xs font-semibold backdrop-blur-sm"
@@ -326,9 +340,9 @@ export default function AboutPage() {
               <h2 className="font-title text-4xl md:text-5xl text-[var(--pajak-base)] mt-4 mb-6 leading-tight tracking-tight">
                 Alpha Project
               </h2>
-              <div className="border-l-4 border-[var(--pajak-secondary)] pl-5 space-y-4">
+              <div className="border-l-4 border-[var(--pajak-secondary)] pl-5 space-y-4 text-justify">
                 <p className="text-gray-600 leading-relaxed text-[15px]">
-                  Dalam program MBKM di KAP Hikman dan Arief, Alpha Project
+                  Dalam program MBKM di MHCorp, Alpha Project
                   mengembangkan sistem analitik untuk mengolah dokumen putusan
                   pajak yang panjang dan rumit menjadi data yang lebih ringkas
                   dan terstruktur.
@@ -360,9 +374,9 @@ export default function AboutPage() {
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-12">
           {[
-            { value: "NLP", label: "Teknologi Utama", icon: "🧠" },
-            { value: "Otomatis", label: "Ekstraksi Data", icon: "⚡" },
-            { value: "Akurat", label: "Berbasis Data", icon: "📊" },
+            { value: "NLP", label: "Teknologi Utama", icon: <Brain className="w-18 h-18"></Brain> },
+            { value: "Scraping", label: "Pengumpulan Data", icon: <FileCodeCorner className="w-18 h-18"/> },
+            { value: "Akurat", label: "Berbasis Data", icon: <ChartNoAxesCombined className="w-18 h-18"/> },
           ].map((stat) => (
             <div
               key={stat.label}
@@ -386,8 +400,14 @@ export default function AboutPage() {
           <div className="absolute top-0 right-0 w-80 h-80 rounded-full bg-[var(--pajak-secondary)] opacity-20 blur-3xl -translate-y-20 translate-x-20" />
           <div className="absolute bottom-0 left-0 w-60 h-60 rounded-full bg-[var(--pajak-tertiary)] opacity-20 blur-3xl translate-y-10 -translate-x-10" />
 
-          <div className="relative shrink-0 w-24 h-24 rounded-2xl bg-white/15 border border-white/20 backdrop-blur-sm flex items-center justify-center text-5xl font-bold font-title shadow-lg">
-            M
+          <div className="relative shrink-0 w-fit bg-white/15 border border-white/20 backdrop-blur-sm flex items-center justify-center text-5xl font-bold font-title shadow-lg overflow-hidden">
+            <Image
+              src="/mhcorp.png"
+              width={300}
+              height={300}
+              alt="MHCorp"
+              className="object-contain"
+            />
           </div>
           <div className="relative">
             <span className="inline-block px-2.5 py-0.5 rounded-full bg-white/15 border border-white/20 text-[10px] font-bold tracking-widest uppercase text-[var(--pajak-secondary)] mb-3">
@@ -414,7 +434,7 @@ export default function AboutPage() {
             </h2>
             <p className="text-gray-500 max-w-xl mx-auto text-[15px] leading-relaxed">
               Tujuh mahasiswa UNS yang berkolaborasi untuk membangun sistem
-              analitik putusan pajak bersama KAP Hikman dan Arief.
+              analitik putusan pajak bersama MHCorp.
             </p>
           </div>
 
@@ -444,7 +464,7 @@ export default function AboutPage() {
         />
 
         <div className="relative max-w-4xl mx-auto px-6 py-20 text-center text-white">
-          <h2 className="font-title text-4xl md:text-5xl mb-4 leading-tight tracking-tight">
+          <h2 className="font-title text-4xl md:text-5xl mb-4 leading-tight tracking-0.5">
             Mulai Eksplorasi Putusan Pajak
           </h2>
           <p className="text-blue-100/80 mb-10 text-[15px] max-w-xl mx-auto leading-relaxed">

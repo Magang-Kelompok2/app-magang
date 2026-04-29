@@ -25,7 +25,7 @@ const Navbar = () => {
           <Image
             src="/Logo.svg"
             alt="Sistem Informasi Analisis Putusan Pajak"
-            width={250}
+            width={225}
             height={50}
             className="object-contain"
           />
@@ -37,9 +37,9 @@ const Navbar = () => {
           <Link
             key={href}
             href={href}
-            className={`px-6 py-2 rounded-md transition-all ${
+            className={`px-4 rounded-md transition-all ${
               isActive(href)
-                ? "bg-(--pajak-primary) hover:brightness-110"
+                ? "text-(--pajak-secondary) bg-transparent"
                 : "hover:text-(--pajak-secondary)"
             }`}
           >
