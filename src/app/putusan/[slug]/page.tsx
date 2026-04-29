@@ -1,6 +1,6 @@
 "use client";
 
-import "react-pdf/dist/Page/TextLayer.css";
+import "pdfjs-dist/web/pdf_viewer.css";
 import { useParams, useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import {
@@ -54,32 +54,6 @@ interface PutusanRow {
 
 type TabKey = "ringkasan" | "argumen" | "pertimbangan" | "amar";
 
-interface PdfModule {
-  Document: React.ComponentType<Record<string, unknown>>;
-  Page: React.ComponentType<Record<string, unknown>>;
-  pdfjs: {
-    GlobalWorkerOptions: {
-      workerSrc: string;
-    };
-  };
-}
-
-interface PdfTextItem {
-  str?: string;
-}
-
-interface PdfTextRenderer {
-  str: string;
-}
-
-interface PdfPageProxy {
-  getTextContent: () => Promise<{ items: PdfTextItem[] }>;
-}
-
-interface PdfDocumentProxy {
-  numPages: number;
-  getPage: (pageNumber: number) => Promise<PdfPageProxy>;
-}
 
 // ── Safe display helpers ──────────────────────────────────────────────────────
 
@@ -108,29 +82,6 @@ function getPartyLabels(hasPk: boolean) {
       };
 }
 
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
-
-function highlightText(text: string, keyword: string): string {
-  if (!keyword.trim()) {
-    return `<span style="color: transparent;">${escapeHtml(text)}</span>`;
-  }
-  const pattern = new RegExp(escapeRegExp(keyword), "gi");
-  if (pattern.test(text)) {
-    return `<mark style="color: transparent; background: rgba(250, 204, 21, 0.38); border-radius: 2px; box-shadow: inset 0 -0.3em 0 rgba(250, 204, 21, 0.4);">${escapeHtml(text)}</mark>`;
-  }
-  return `<span style="color: transparent;">${escapeHtml(text)}</span>`;
-}
 
 function getStatusConfig(amar: string) {
   const l = (amar ?? "").toLowerCase();
@@ -300,30 +251,23 @@ function PartyCard({
 // ── PDF Modal ─────────────────────────────────────────────────────────────────
 
 function PdfModal({ namaFile, onClose }: { namaFile: string; onClose: () => void }) {
-  const [numPages, setNumPages] = useState<number>(0);
-  const [pdfMod, setPdfMod] = useState<PdfModule | null>(null);
   const blobUrlRef = useRef<string | null>(null);
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
-  const [pdfProxy, setPdfProxy] = useState<PdfDocumentProxy | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [searchMatches, setSearchMatches] = useState<number[]>([]);
-  const [activeMatchIndex, setActiveMatchIndex] = useState(0);
-  const [searching, setSearching] = useState(false);
-  const pageRefs = useRef<Record<number, HTMLDivElement | null>>({});
+  const [matchInfo, setMatchInfo] = useState<{ current: number; total: number } | null>(null);
+  const [viewerReady, setViewerReady] = useState(false);
 
+  const containerRef = useRef<HTMLDivElement>(null);
+  const viewerDivRef = useRef<HTMLDivElement>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const eventBusRef = useRef<any>(null);
+  const viewerSetup = useRef(false);
+
+  // Fetch PDF blob
   useEffect(() => {
     let cancelled = false;
-
-    import("react-pdf").then((mod) => {
-      mod.pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
-      if (!cancelled) setPdfMod(mod);
-    });
-
     fetch(`/api/pdf/${encodeURIComponent(namaFile)}`)
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.blob();
-      })
+      .then((res) => { if (!res.ok) throw new Error(`HTTP ${res.status}`); return res.blob(); })
       .then((blob) => {
         if (cancelled) return;
         const url = URL.createObjectURL(blob);
@@ -331,50 +275,91 @@ function PdfModal({ namaFile, onClose }: { namaFile: string; onClose: () => void
         setBlobUrl(url);
       })
       .catch((err) => console.error("Failed to load PDF:", err));
-
     return () => {
       cancelled = true;
-      if (blobUrlRef.current) {
-        URL.revokeObjectURL(blobUrlRef.current);
-        blobUrlRef.current = null;
-      }
+      if (blobUrlRef.current) { URL.revokeObjectURL(blobUrlRef.current); blobUrlRef.current = null; }
     };
   }, [namaFile]);
 
-  const { Document, Page } = pdfMod ?? {};
-  const normalizedSearchTerm = searchTerm.trim();
+  // Setup pdfjs-dist viewer + findController once blob is ready
+  useEffect(() => {
+    if (!blobUrl || viewerSetup.current || !containerRef.current || !viewerDivRef.current) return;
+    viewerSetup.current = true;
 
-  const runSearch = async () => {
-    if (!pdfProxy) return;
-    const keyword = searchTerm.trim().toLowerCase();
-    if (!keyword) { setSearchMatches([]); setActiveMatchIndex(0); return; }
-    setSearching(true);
-    try {
-      const matches: number[] = [];
-      for (let pageNumber = 1; pageNumber <= pdfProxy.numPages; pageNumber += 1) {
-        const page = await pdfProxy.getPage(pageNumber);
-        const content = await page.getTextContent();
-        const pageText = content.items.map((item) => item.str ?? "").join(" ").toLowerCase();
-        if (pageText.includes(keyword)) matches.push(pageNumber);
+    (async () => {
+      try {
+        // pdfjs-dist must be imported FIRST and set as globalThis.pdfjsLib
+        // because pdf_viewer.mjs reads globalThis.pdfjsLib at module evaluation time
+        const pdfjs = await import("pdfjs-dist");
+        pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (globalThis as any).pdfjsLib = pdfjs;
+
+        const pdfjsViewer = await import("pdfjs-dist/web/pdf_viewer.mjs");
+
+        const eventBus = new pdfjsViewer.EventBus();
+        eventBusRef.current = eventBus;
+        const linkService = new pdfjsViewer.PDFLinkService({ eventBus });
+        const findController = new pdfjsViewer.PDFFindController({ linkService, eventBus });
+
+        const pdfViewer = new pdfjsViewer.PDFViewer({
+          container: containerRef.current!,
+          viewer: viewerDivRef.current!,
+          eventBus,
+          linkService,
+          findController,
+          textLayerMode: 2,
+        });
+        linkService.setViewer(pdfViewer);
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        eventBus.on("updatefindmatchescount", ({ matchesCount }: any) => {
+          setMatchInfo({ current: matchesCount.current, total: matchesCount.total });
+        });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        eventBus.on("updatefindcontrolstate", ({ state, matchesCount }: any) => {
+          if (matchesCount) {
+            setMatchInfo({ current: matchesCount.current, total: matchesCount.total });
+          } else if (state === 3 /* NOT_FOUND */) {
+            setMatchInfo({ current: 0, total: 0 });
+          }
+        });
+
+        const loadingTask = pdfjs.getDocument(blobUrl);
+        const pdfDocument = await loadingTask.promise;
+        pdfViewer.setDocument(pdfDocument);
+        linkService.setDocument(pdfDocument, null);
+        setViewerReady(true);
+      } catch (err) {
+        console.error("Failed to setup PDF viewer:", err);
       }
-      setSearchMatches(matches);
-      setActiveMatchIndex(0);
-      if (matches.length > 0) pageRefs.current[matches[0]]?.scrollIntoView({ behavior: "smooth", block: "start" });
-    } finally {
-      setSearching(false);
-    }
-  };
+    })();
+  }, [blobUrl]);
 
-  const jumpToMatch = (direction: 1 | -1) => {
-    if (searchMatches.length === 0) return;
-    const nextIndex = (activeMatchIndex + direction + searchMatches.length) % searchMatches.length;
-    setActiveMatchIndex(nextIndex);
-    pageRefs.current[searchMatches[nextIndex]]?.scrollIntoView({ behavior: "smooth", block: "start" });
+  const execFind = (type: "find" | "findagain", findPrevious = false) => {
+    if (!eventBusRef.current || !searchTerm.trim()) return;
+    // PDFFindController listens to "find" events on the EventBus
+    eventBusRef.current.dispatch("find", {
+      query: searchTerm.trim(),
+      highlightAll: true,
+      caseSensitive: false,
+      phraseSearch: true,
+      findPrevious,
+      type: type === "findagain" ? "again" : "",
+    });
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      {/* Override pdfjs default highlight colors to yellow */}
+      <style>{`
+        .textLayer .highlight { background-color: rgba(250, 204, 21, 0.45) !important; border-radius: 2px; }
+        .textLayer .highlight.selected { background-color: rgba(234, 88, 12, 0.55) !important; }
+        .pdfViewer .page { margin: 12px auto !important; box-shadow: 0 2px 8px rgba(0,0,0,0.18); border-radius: 2px; }
+      `}</style>
+
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl h-[90vh] flex flex-col overflow-hidden">
+        {/* Header */}
         <div className="flex items-center justify-between gap-4 px-5 py-3 border-b shrink-0">
           <div className="min-w-0 flex-1">
             <span className="text-sm text-gray-700 truncate block max-w-[400px]">{namaFile}</span>
@@ -399,58 +384,60 @@ function PdfModal({ namaFile, onClose }: { namaFile: string; onClose: () => void
           </div>
         </div>
 
+        {/* Search bar */}
         <div className="flex flex-wrap items-center gap-3 px-5 py-3 border-b bg-white shrink-0">
           <div className="relative min-w-[260px] flex-1">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void runSearch(); } }}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); execFind("find"); } }}
               placeholder="Cari kata di PDF..."
-              className="w-full rounded-xl border border-gray-200 bg-gray-50 pl-9 pr-3 py-2 text-sm outline-none focus:border-[var(--pajak-primary)] focus:bg-white"
+              className="w-full rounded-xl border border-gray-200 bg-gray-50 pl-9 pr-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:border-[var(--pajak-primary)] focus:bg-white"
             />
           </div>
           <button
-            onClick={() => void runSearch()}
-            disabled={!pdfProxy || searching}
+            onClick={() => execFind("find")}
+            disabled={!viewerReady}
             className="rounded-xl bg-[var(--pajak-primary)] px-4 py-2 text-xs font-semibold text-white disabled:opacity-50"
           >
-            {searching ? "Mencari..." : "Cari"}
+            Cari
           </button>
           <div className="flex items-center gap-2 text-xs text-gray-500">
-            <button onClick={() => jumpToMatch(-1)} disabled={searchMatches.length === 0} className="rounded-lg border border-gray-200 p-2 disabled:opacity-40">
+            <button
+              onClick={() => execFind("findagain", true)}
+              disabled={!matchInfo || matchInfo.total === 0}
+              className="rounded-lg border border-gray-200 p-2 disabled:opacity-40"
+            >
               <ChevronLeft size={14} />
             </button>
-            <span>{searchMatches.length > 0 ? `${activeMatchIndex + 1}/${searchMatches.length} halaman` : "Tidak ada hasil"}</span>
-            <button onClick={() => jumpToMatch(1)} disabled={searchMatches.length === 0} className="rounded-lg border border-gray-200 p-2 disabled:opacity-40">
+            <span>
+              {matchInfo == null
+                ? "—"
+                : matchInfo.total === 0
+                  ? "Tidak ada hasil"
+                  : `${matchInfo.current}/${matchInfo.total} hasil`}
+            </span>
+            <button
+              onClick={() => execFind("findagain", false)}
+              disabled={!matchInfo || matchInfo.total === 0}
+              className="rounded-lg border border-gray-200 p-2 disabled:opacity-40"
+            >
               <ChevronRight size={14} />
             </button>
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto flex flex-col items-center bg-gray-100 p-4 gap-4">
-          {!Document || !blobUrl ? (
-            <div className="flex items-center justify-center h-40 text-gray-400">Memuat PDF...</div>
-          ) : (
-            <Document
-              file={blobUrl}
-              onLoadSuccess={(pdf: PdfDocumentProxy) => { setNumPages(pdf.numPages); setPdfProxy(pdf); }}
-            >
-              {Array.from({ length: numPages }, (_, i) => (
-                <div key={i + 1} ref={(node) => { pageRefs.current[i + 1] = node; }} className="relative">
-                  <div className="mb-2 text-xs text-gray-400 font-semibold">Halaman {i + 1}</div>
-                  <Page
-                    pageNumber={i + 1}
-                    width={800}
-                    className="shadow-md mb-2"
-                    renderAnnotationLayer={false}
-                    renderTextLayer
-                    customTextRenderer={({ str }: PdfTextRenderer) => highlightText(str, normalizedSearchTerm)}
-                  />
-                </div>
-              ))}
-            </Document>
+        {/* PDF Viewer — pdfjs-dist native viewer with built-in Ctrl+F-like search */}
+        {/* Outer wrapper: relative + flex-1 so the absolute container fills it */}
+        <div className="flex-1 relative bg-gray-100 overflow-hidden">
+          {!blobUrl && (
+            <div className="absolute inset-0 flex items-center justify-center text-gray-400">Memuat PDF...</div>
           )}
+          {/* pdfjs PDFViewer requires container to have position:absolute */}
+          <div ref={containerRef} className="absolute inset-0 overflow-auto">
+            <div ref={viewerDivRef} className="pdfViewer" />
+          </div>
         </div>
       </div>
     </div>

@@ -19,8 +19,8 @@ const Navbar = () => {
     href === '/' ? pathname === '/' : pathname.startsWith(href);
 
   return (
-    <nav className="bg-(--pajak-base) px-20 py-4 flex justify-between items-center shadow-md">
-      <div className="flex items-center">
+    <nav className="bg-(--pajak-base) px-20 py-4 grid grid-cols-3 items-center shadow-md">
+      <div className="flex items-center justify-self-start">
         <Link href="/">
           <Image
             src="/Logo.svg"
@@ -32,7 +32,7 @@ const Navbar = () => {
         </Link>
       </div>
 
-      <div className="flex items-center gap-8 font-(family-name:--font-montserrat) text-white text-sm font-medium">
+      <div className="flex items-center justify-self-center gap-8 font-(family-name:--font-montserrat) text-white text-sm font-medium">
         {NAV_LINKS.map(({ href, label }) => (
           <Link
             key={href}
@@ -46,9 +46,11 @@ const Navbar = () => {
             {label}
           </Link>
         ))}
+      </div>
 
+      <div className="flex items-center justify-self-end font-(family-name:--font-montserrat) text-white text-sm font-medium">
         {session?.user && (
-          <div className="flex items-center gap-3 pl-4 border-l border-white/20">
+          <div className="flex items-center gap-3">
             <span className="text-white/70 text-xs">{session.user.name}</span>
             <button
               onClick={() => signOut({ callbackUrl: '/login' })}
