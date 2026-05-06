@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, KeyboardEvent, useMemo, useEffect, useCallback } from 'react';
-import { Search, Filter, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, Filter, X, ChevronLeft, ChevronRight, Loader } from "lucide-react";
 import FilterModal from "../components/FilterModal";
 import DecisionCard from "../components/DecisionCard";
 
@@ -333,7 +333,7 @@ export default function DashboardPage() {
 
         <div className="space-y-4 mb-10">
           <p className="text-sm font-bold text-gray-500">
-            {loading ? "Memuat data..." : `${totalItems} Putusan Ditemukan`}
+            {loading ? <Loader className='animate-spin' /> : `${totalItems} Putusan Ditemukan`}
           </p>
 
           {loading ? (

@@ -236,14 +236,13 @@ export default function AboutPage() {
         <div className="relative max-w-5xl mx-auto px-6 py-28 text-center text-white">
           <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-xs font-semibold tracking-widest uppercase text-[var(--pajak-secondary)] mb-5 backdrop-blur-sm">
             <span className="w-1.5 h-1.5 rounded-full bg-[var(--pajak-secondary)]" />
-            Alpha Project · MBKM UNS
+            HIBAH MBKM UNS 2026  
           </span>
           <h1 className="font-title text-5xl md:text-7xl mb-6 leading-[1.05] tracking-tight">
             Tentang Kami
           </h1>
           <p className="text-lg md:text-xl text-blue-100/90 max-w-2xl mx-auto leading-relaxed">
-            Temukan cerita di balik proyek kami, program yang mendasarinya, dan
-            tim yang membangun sistem analitik putusan pajak ini.
+            Pelajari lebih lanjut mengenai latar belakang proyek ini, program yang mendasarinya, serta tim yang mengembangkan sistem analitik putusan pajak ini.
           </p>
         </div>
       </section>

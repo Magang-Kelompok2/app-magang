@@ -4,15 +4,26 @@ from pgvector.psycopg2 import register_vector
 from sentence_transformers import SentenceTransformer
 from datetime import datetime
 
+# import os
+# from dotenv import load_dotenv
+
+# load_dotenv() 
+
+# DB_HOST = os.getenv("DB_HOST")
+# DB_NAME = os.getenv("DB_NAME")
+# DB_USER = os.getenv("DB_USER")
+# DB_PASSWORD = os.getenv("DB_PASSWORD")
+# DB_PORT = os.getenv("DB_PORT")
+
 # 1. Inisialisasi Model Embedding Gratis (Lokal)
-print("Sedang memuat model BGE-M3 (gratis)...")
-model = SentenceTransformer('BAAI/bge-m3')
+print("Sedang memuat model MiniLM...")
+model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
 
 # 2. Koneksi ke Database (Sesuaikan dengan .env kamu)
 conn = psycopg2.connect(
-    host="localhost",
+    host="76.13.222.194",
     database="alpha123",
-    user="alpha123",
+    user="alpha",
     password="alpha123",
     port="5432"
 )
@@ -20,7 +31,7 @@ register_vector(conn)
 cur = conn.cursor()
 
 # 3. Load Data JSON (Gunakan file final yang sudah bersih)
-with open('src/RAG/hasil_ringkasan_pajak_final.json', 'r', encoding='utf-8') as f:
+with open('src/RAG/hasil_ekstraksi_tambahan.json', 'r', encoding='utf-8') as f:
     data_list = json.load(f)
 
 print(f"Memproses {len(data_list)} data...")
