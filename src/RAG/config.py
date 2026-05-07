@@ -155,7 +155,7 @@ def _load_config() -> AppConfig:
             max_connections=_optional_int("DB_MAX_CONNECTIONS", 5),
         ),
         embedding=EmbeddingConfig(
-            model_name=_optional("EMBEDDING_MODEL", "BAAI/bge-m3"),
+            model_name=_optional("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2"),
             top_k=_optional_int("RAG_TOP_K", 10),
             relevance_threshold=_optional_float("RAG_RELEVANCE_THRESHOLD", 0.0),
         ),
