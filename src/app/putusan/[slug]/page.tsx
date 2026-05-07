@@ -350,7 +350,7 @@ function PdfModal({ namaFile, onClose }: { namaFile: string; onClose: () => void
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+    <div className="fixed h-full inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
       {/* Override pdfjs default highlight colors to yellow */}
       <style>{`
         .textLayer .highlight { background-color: rgba(250, 204, 21, 0.45) !important; border-radius: 2px; }
@@ -377,7 +377,7 @@ function PdfModal({ namaFile, onClose }: { namaFile: string; onClose: () => void
             )}
             <button
               onClick={onClose}
-              className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center"
+              className="w-8 h-8 rounded-lg text-gray-800 hover:bg-red-500 hover:text-white transition-colors cursor-pointer flex items-center justify-center"
             >
               <X size={14} />
             </button>
@@ -665,12 +665,12 @@ export default function PutusanDetailPage() {
   const labels = getPartyLabels(Boolean(data?.nomor_putusan_pk));
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: "#F4F6F9" }}>
+    <div className="min-h-dvh bg-[var(--pajak-light)]">
       {showPdf && data?.nama_file && (
         <PdfModal namaFile={data.nama_file} onClose={() => setShowPdf(false)} />
       )}
 
-      <div className="max-w-[1440px] mx-auto px-8 py-8">
+      <div className="max-w-360 mx-auto px-8 py-8">
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 mb-6">
           <button
@@ -812,23 +812,36 @@ export default function PutusanDetailPage() {
               <div className="flex border-b border-gray-100 px-8 overflow-x-auto">
                 {TABS.map((tab) => {
                   const isActive = activeTab === tab.key;
+
                   return (
                     <button
                       key={tab.key}
                       onClick={() => setActiveTab(tab.key)}
-                      className="relative shrink-0 pb-4 pt-5 px-1 mr-8 text-sm font-semibold transition-colors whitespace-nowrap"
+                      className="
+                        group relative shrink-0 pb-4 pt-5 px-1 mr-8
+                        text-sm font-semibold whitespace-nowrap
+                        transition-all duration-200
+                        hover:text-[#0C81E4]
+                      "
                       style={{
                         color: isActive ? "#0C81E4" : "#9ca3af",
                         fontFamily: "var(--font-montserrat)",
                       }}
                     >
                       {tab.label}
-                      {isActive && (
-                        <span
-                          className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full"
-                          style={{ backgroundColor: "#0C81E4" }}
-                        />
-                      )}
+
+                      <span
+                        className={`
+                          absolute bottom-0 left-0 right-0 h-0.5 rounded-full
+                          transition-all duration-300 origin-center
+                          ${
+                            isActive
+                              ? "opacity-100 scale-x-100"
+                              : "opacity-0 scale-x-0 group-hover:opacity-100 group-hover:scale-x-100"
+                          }
+                        `}
+                        style={{ backgroundColor: "#0C81E4" }}
+                      />
                     </button>
                   );
                 })}

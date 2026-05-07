@@ -208,7 +208,7 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--pajak-light)] pb-20 font-[family-name:var(--font-montserrat)]">
+    <div className="min-h-dvh bg-[var(--pajak-light)] pb-20 font-[family-name:var(--font-montserrat)]">
       <main className="max-w-[1440px] mx-auto p-8">
         <header className="mb-8 flex items-end justify-between flex-wrap gap-3">
           <div>

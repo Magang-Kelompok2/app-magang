@@ -2,10 +2,10 @@ const { Pool } = require("pg");
 const bcrypt = require("bcryptjs");
 
 const pool = new Pool({
-  host: "127.0.0.1",
-  database: "KAPHA_db",
-  user: "KAPHikmahArief",
-  password: "KAPHA_secret_2026",
+  host: "76.13.222.194",
+  database: "alpha123",
+  user: "alpha",
+  password: "alpha123",
   port: 5432,
 });
 
