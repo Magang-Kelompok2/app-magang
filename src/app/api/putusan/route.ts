@@ -49,8 +49,13 @@ function amarCategorySql(column = "amar_putusan"): string {
 function normalizePengadilanValue(value: string): string {
   const normalized = value.trim().toLowerCase();
 
-  if (normalized === "ma" || normalized.includes("mahkamah")) return "Mahkamah Agung";
-  if (normalized === "pp" || normalized.includes("pengadilan pajak")) return "Pengadilan Pajak";
+  if (normalized === "ma" || normalized === "mahkamah agung") return "Mahkamah Agung";
+  if (normalized === "pp" || normalized === "pengadilan pajak") return "Pengadilan Pajak";
+  if (normalized === "pengadilan tata usaha negara") return "Pengadilan Tata Usaha Negara";
+  if (normalized === "pengadilan tinggi") return "Pengadilan Tinggi";
+  if (normalized === "pengadilan negeri") return "Pengadilan Negeri";
+  if (normalized === "pengadilan agama") return "Pengadilan Agama";
+  if (normalized === "lainnya") return "Lainnya";
 
   return value.trim();
 }
@@ -120,9 +125,18 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }
     }
 
-    if (isValidParam(pengadilan) && pengadilan !== "Semua") {
-      const pengadilanValue = normalizePengadilanValue(pengadilan);
-      conditions.push(`pengadilan ILIKE ${addParam(`%${pengadilanValue}%`)}`);
+    if (isValidParam(pengadilan)) {
+      const arr = pengadilan
+        .split(",")
+        .map((p) => p.trim())
+        .filter(Boolean)
+        .map(normalizePengadilanValue);
+      if (arr.length === 1) {
+        conditions.push(`pengadilan ILIKE ${addParam(`%${arr[0]}%`)}`);
+      } else if (arr.length > 1) {
+        const orClauses = arr.map((v) => `pengadilan ILIKE ${addParam(`%${v}%`)}`);
+        conditions.push(`(${orClauses.join(" OR ")})`);
+      }
     }
 
     if (isValidParam(tahunPutusan) && tahunPutusan.includes(",")) {

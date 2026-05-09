@@ -25,7 +25,7 @@ interface DashboardFilters {
   jenisPajak: string[];
   jenisSengketa: string[];
   upayaHukum: string[];
-  pengadilan: string;
+  pengadilan: string[];
   tahunPutusan: [number, number];
   tahunPajak: [number, number];
 }
@@ -50,12 +50,12 @@ const DEFAULT_FILTERS: DashboardFilters = {
   jenisPajak: [],
   jenisSengketa: [],
   upayaHukum: [],
-  pengadilan: 'Semua',
+  pengadilan: [],
   tahunPutusan: [2006, 2024],
   tahunPajak: [2006, 2024],
 };
 
-const LS_FILTERS_KEY = 'kapha_dashboard_filters_v2';
+const LS_FILTERS_KEY = 'kapha_dashboard_filters_v3';
 const LS_KEYWORDS_KEY = 'kapha_dashboard_keywords_v1';
 
 function loadFromStorage<T>(key: string, fallback: T): T {
@@ -97,9 +97,15 @@ export default function DashboardPage() {
 
   // Hydrate from localStorage on mount
   useEffect(() => {
-    const savedFilters = loadFromStorage<DashboardFilters>(LS_FILTERS_KEY, DEFAULT_FILTERS);
+    const saved = loadFromStorage<DashboardFilters>(LS_FILTERS_KEY, DEFAULT_FILTERS);
+    // Guard against stale shape where pengadilan was a string
+    const normalizedFilters: DashboardFilters = {
+      ...DEFAULT_FILTERS,
+      ...saved,
+      pengadilan: Array.isArray(saved.pengadilan) ? saved.pengadilan : [],
+    };
     const savedKeywords = loadFromStorage<string[]>(LS_KEYWORDS_KEY, []);
-    setFilters(savedFilters);
+    setFilters(normalizedFilters);
     setActiveKeywords(savedKeywords);
     setHydrated(true);
   }, []);
@@ -123,7 +129,7 @@ export default function DashboardPage() {
         jenisPajak: filters.jenisPajak.join(','),
         jenisSengketa: filters.jenisSengketa.join(','),
         upayaHukum: filters.upayaHukum.join(','),
-        pengadilan: filters.pengadilan,
+        pengadilan: filters.pengadilan.join(','),
         tahunPutusan: filters.tahunPutusan.join(','),
         tahunPajak: filters.tahunPajak.join(','),
         search: activeKeywords.join(' ')
@@ -183,8 +189,9 @@ export default function DashboardPage() {
     filters.upayaHukum.forEach((u) =>
       badges.push({ label: `Upaya: ${u}`, onRemove: () => setFilters((f) => ({ ...f, upayaHukum: f.upayaHukum.filter((x) => x !== u) })) })
     );
-    if (filters.pengadilan !== 'Semua')
-      badges.push({ label: `Pengadilan: ${filters.pengadilan}`, onRemove: () => setFilters((f) => ({ ...f, pengadilan: 'Semua' })) });
+    filters.pengadilan.forEach((p) =>
+      badges.push({ label: `Pengadilan: ${p}`, onRemove: () => setFilters((f) => ({ ...f, pengadilan: f.pengadilan.filter((x) => x !== p) })) })
+    );
     if (filters.tahunPutusan[0] !== 2006 || filters.tahunPutusan[1] !== 2024)
       badges.push({ label: `Thn Putusan: ${filters.tahunPutusan[0]}–${filters.tahunPutusan[1]}`, onRemove: () => setFilters((f) => ({ ...f, tahunPutusan: [2006, 2024] })) });
     if (filters.tahunPajak[0] !== 2006 || filters.tahunPajak[1] !== 2024)

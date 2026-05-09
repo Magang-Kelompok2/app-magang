@@ -8,7 +8,7 @@ interface DashboardFilters {
   jenisPajak: string[];
   jenisSengketa: string[];
   upayaHukum: string[];
-  pengadilan: string;
+  pengadilan: string[];
   tahunPutusan: [number, number];
   tahunPajak: [number, number];
 }
@@ -27,6 +27,16 @@ const JENIS_PAJAK_OPTIONS = [
   'PBB & BPHTB', 'Pajak Daerah', 'Sanksi & Administrasi', 'Tidak Teridentifikasi',
 ];
 
+const PENGADILAN_OPTIONS = [
+  'Pengadilan Pajak',
+  'Mahkamah Agung',
+  'Pengadilan Tata Usaha Negara',
+  'Pengadilan Tinggi',
+  'Pengadilan Negeri',
+  'Pengadilan Agama',
+  'Lainnya',
+];
+
 const JENIS_SENGKETA_OPTIONS = [
   'Transfer Pricing', 'BUT & Tax Treaty', 'Koreksi PPh Badan', 'Koreksi PPN',
   'PPh Pemotongan/Pemungutan', 'Sengketa Kepabeanan', 'Klasifikasi Objek Pajak',
@@ -40,7 +50,7 @@ const DEFAULT: DashboardFilters = {
   jenisPajak: [],
   jenisSengketa: [],
   upayaHukum: [],
-  pengadilan: 'Semua',
+  pengadilan: [],
   tahunPutusan: [2006, 2024],
   tahunPajak: [2006, 2024],
 };
@@ -54,9 +64,10 @@ const FilterModal = ({ isOpen, onClose, onApplyFilter, initialFilters }: FilterM
   const [selectedPajak, setSelectedPajak] = useState<string[]>(base.jenisPajak);
   const [selectedSengketa, setSelectedSengketa] = useState<string[]>(base.jenisSengketa);
   const [selectedUpaya, setSelectedUpaya] = useState<string[]>(base.upayaHukum);
-  const [selectedPengadilan, setSelectedPengadilan] = useState<string>(base.pengadilan === 'Semua' ? '' : base.pengadilan);
+  const [selectedPengadilan, setSelectedPengadilan] = useState<string[]>(
+    Array.isArray(base.pengadilan) ? base.pengadilan : []
+  );
 
-  // Sync state when initialFilters changes (e.g. reset from parent)
   useEffect(() => {
     if (!isOpen) return;
     const b = initialFilters ?? DEFAULT;
@@ -66,7 +77,7 @@ const FilterModal = ({ isOpen, onClose, onApplyFilter, initialFilters }: FilterM
     setSelectedPajak(b.jenisPajak);
     setSelectedSengketa(b.jenisSengketa);
     setSelectedUpaya(b.upayaHukum);
-    setSelectedPengadilan(b.pengadilan === 'Semua' ? '' : b.pengadilan);
+    setSelectedPengadilan(Array.isArray(b.pengadilan) ? b.pengadilan : []);
   }, [isOpen, initialFilters]);
 
   const toggleFilter = (list: string[], setList: (v: string[]) => void, value: string) => {
@@ -83,7 +94,7 @@ const FilterModal = ({ isOpen, onClose, onApplyFilter, initialFilters }: FilterM
       jenisPajak: selectedPajak,
       jenisSengketa: selectedSengketa,
       upayaHukum: selectedUpaya,
-      pengadilan: selectedPengadilan || 'Semua',
+      pengadilan: selectedPengadilan,
       tahunPutusan,
       tahunPajak,
     });
@@ -170,27 +181,19 @@ const FilterModal = ({ isOpen, onClose, onApplyFilter, initialFilters }: FilterM
 
           {/* Pengadilan */}
           <section>
-            <h4 className="font-bold text-gray-800 mb-4 text-sm">Pengadilan</h4>
-            <div className="flex gap-8">
-              <PengadilanOption
-                label="Mahkamah Agung"
-                img="/Mahkamah_Agung.svg"
-                active={selectedPengadilan === 'MA'}
-                onClick={() => setSelectedPengadilan(selectedPengadilan === 'MA' ? '' : 'MA')}
-              />
-              <PengadilanOption
-                label="Pengadilan Pajak"
-                img="/Pengadilan_Pajak.svg"
-                active={selectedPengadilan === 'PP'}
-                onClick={() => setSelectedPengadilan(selectedPengadilan === 'PP' ? '' : 'PP')}
-              />
-            </div>
+            <h4 className="font-bold text-gray-800 mb-3 text-sm">Pengadilan</h4>
+            <MultiSelectDropdown
+              placeholder="Pilih pengadilan..."
+              options={PENGADILAN_OPTIONS}
+              value={selectedPengadilan}
+              onChange={setSelectedPengadilan}
+            />
           </section>
 
-          {/* Range Sliders */}
-          <div className="grid grid-cols-2 gap-10 pt-4 border-t border-[var(--pajak-border)]">
-            <YearSlider label="Tahun Putusan" val={tahunPutusan} setVal={setTahunPutusan} />
-            <YearSlider label="Tahun Pajak" val={tahunPajak} setVal={setTahunPajak} />
+          {/* Tahun */}
+          <div className="grid grid-cols-2 gap-6 pt-4 border-t border-[var(--pajak-border)]">
+            <YearRangePicker label="Tahun Putusan" val={tahunPutusan} setVal={setTahunPutusan} />
+            <YearRangePicker label="Tahun Pajak" val={tahunPajak} setVal={setTahunPajak} />
           </div>
         </div>
 
@@ -210,80 +213,6 @@ const FilterModal = ({ isOpen, onClose, onApplyFilter, initialFilters }: FilterM
 
 /* --- Sub-Components --- */
 
-const SingleSelectDropdown = ({
-  placeholder, options, value, onChange,
-}: {
-  placeholder: string;
-  options: string[];
-  value: string;
-  onChange: (v: string) => void;
-}) => {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className="relative">
-      {/* Trigger */}
-      <button
-        type="button"
-        onClick={() => setOpen(!open)}
-        className={`
-          w-full flex items-center justify-between px-4 py-3 rounded-2xl border-2 text-sm font-semibold
-          transition-all duration-200 bg-white
-          ${open
-            ? 'border-[var(--pajak-primary)] ring-4 ring-blue-50'
-            : 'border-[var(--pajak-border)] hover:border-gray-300'}
-        `}
-      >
-        <span className={value ? 'text-gray-800' : 'text-gray-400'}>
-          {value || placeholder}
-        </span>
-        <div className="flex items-center gap-1">
-          {value && (
-            <span
-              role="button"
-              onClick={(e) => { e.stopPropagation(); onChange(''); }}
-              className="p-0.5 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
-            >
-              <X size={13} />
-            </span>
-          )}
-          <ChevronDown
-            size={16}
-            className={`text-gray-400 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
-          />
-        </div>
-      </button>
-
-      {/* Inline list */}
-      {open && (
-        <div className="mt-2 border-2 border-[var(--pajak-border)] rounded-2xl overflow-hidden bg-white shadow-lg">
-          <div className="overflow-y-auto max-h-52 custom-scrollbar">
-            {options.map((opt) => {
-              const selected = value === opt;
-              return (
-                <button
-                  key={opt}
-                  type="button"
-                  onClick={() => { onChange(selected ? '' : opt); setOpen(false); }}
-                  className={`
-                    w-full flex items-center justify-between px-4 py-2.5 text-sm text-left
-                    transition-colors duration-150
-                    ${selected
-                      ? 'bg-blue-50 text-[var(--pajak-primary)] font-bold'
-                      : 'text-gray-700 font-medium hover:bg-gray-50'}
-                  `}
-                >
-                  <span>{opt}</span>
-                  {selected && <Check size={14} strokeWidth={3} className="text-[var(--pajak-primary)] shrink-0" />}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
 const MultiSelectDropdown = ({
   placeholder, options, value, onChange,
 }: {
@@ -300,7 +229,6 @@ const MultiSelectDropdown = ({
 
   return (
     <div className="relative">
-      {/* Trigger */}
       <button
         type="button"
         onClick={() => setOpen(!open)}
@@ -339,7 +267,6 @@ const MultiSelectDropdown = ({
         />
       </button>
 
-      {/* Inline list */}
       {open && (
         <div className="mt-2 border-2 border-[var(--pajak-border)] rounded-2xl overflow-hidden bg-white shadow-lg">
           <div className="overflow-y-auto max-h-52 custom-scrollbar">
@@ -402,52 +329,82 @@ const FilterChip = ({ label, active, onClick }: { label: string; active: boolean
   </button>
 );
 
-const PengadilanOption = ({ label, img, active, onClick }: { label: string; img: string; active: boolean; onClick: () => void }) => (
-  <div onClick={onClick} className="flex flex-col items-center gap-3 cursor-pointer group relative">
-    <div className={`
-      w-28 h-28 border-2 rounded-[24px] flex items-center justify-center p-5 transition-all duration-300
-      ${active
-        ? 'border-[var(--pajak-primary)] bg-blue-50 shadow-md ring-4 ring-blue-50/50'
-        : 'border-[var(--pajak-border)] bg-white opacity-40 grayscale hover:opacity-70'}
-    `}>
-      <img src={img} alt={label} className="object-contain w-full h-full" />
-    </div>
-    <span className={`text-[11px] font-extrabold text-center transition-colors ${active ? 'text-[var(--pajak-primary)]' : 'text-gray-400'}`}>
-      {label}
-    </span>
-  </div>
-);
+const YEAR_MIN = 2006;
+const YEAR_MAX = 2024;
+const ALL_YEARS = Array.from({ length: YEAR_MAX - YEAR_MIN + 1 }, (_, i) => YEAR_MIN + i);
 
-const YearSlider = ({ label, val, setVal }: { label: string; val: [number, number]; setVal: (v: [number, number]) => void }) => (
-  <div className="space-y-6">
-    <h4 className="font-bold text-gray-800 text-sm">{label}</h4>
-    <div className="relative h-10 px-2">
-      <div className="flex justify-between text-[11px] font-black text-gray-300 absolute -top-4 w-full px-1">
-        <span>2006</span>
-        <span>2024</span>
+const YearRangePicker = ({ label, val, setVal }: { label: string; val: [number, number]; setVal: (v: [number, number]) => void }) => {
+  const pct = (y: number) => ((y - YEAR_MIN) / (YEAR_MAX - YEAR_MIN)) * 100;
+  const isDefault = val[0] === YEAR_MIN && val[1] === YEAR_MAX;
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h4 className="font-bold text-gray-800 text-sm">{label}</h4>
+        {!isDefault && (
+          <button
+            type="button"
+            onClick={() => setVal([YEAR_MIN, YEAR_MAX])}
+            className="text-[10px] font-bold text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            Reset
+          </button>
+        )}
       </div>
-      <div className="absolute top-1/2 left-0 w-full h-[6px] bg-gray-100 rounded-full -translate-y-1/2">
+
+      {/* Range labels */}
+      <div className="flex justify-between text-[10px] font-black text-gray-500 px-0.5">
+        <span>{YEAR_MIN}</span>
+        <span>{YEAR_MAX}</span>
+      </div>
+
+
+      {/* Range bar */}
+      <div className="relative h-1.5 bg-gray-100 rounded-full mx-0.5">
         <div
-          className="absolute h-full bg-black rounded-full transition-all duration-150"
-          style={{ left: `${((val[0] - 2006) / (2024 - 2006)) * 100}%`, right: `${100 - ((val[1] - 2006) / (2024 - 2006)) * 100}%` }}
-        ></div>
+          className="absolute h-full bg-[var(--pajak-primary)] rounded-full transition-all duration-200"
+          style={{ left: `${pct(val[0])}%`, right: `${100 - pct(val[1])}%` }}
+        />
+        <div
+          className="absolute w-3 h-3 bg-[var(--pajak-primary)] rounded-full border-2 border-white shadow -top-[3px] -translate-x-1/2 transition-all duration-200"
+          style={{ left: `${pct(val[0])}%` }}
+        />
+        <div
+          className="absolute w-3 h-3 bg-[var(--pajak-primary)] rounded-full border-2 border-white shadow -top-[3px] -translate-x-1/2 transition-all duration-200"
+          style={{ left: `${pct(val[1])}%` }}
+        />
       </div>
-      <input
-        type="range" min="2006" max="2024" value={val[0]}
-        onChange={(e) => setVal([Math.min(Number(e.target.value), val[1] - 1), val[1]])}
-        className="absolute top-1/2 left-0 w-full -translate-y-1/2 appearance-none bg-transparent pointer-events-none custom-range-thumb"
-      />
-      <input
-        type="range" min="2006" max="2024" value={val[1]}
-        onChange={(e) => setVal([val[0], Math.max(Number(e.target.value), val[0] + 1)])}
-        className="absolute top-1/2 left-0 w-full -translate-y-1/2 appearance-none bg-transparent pointer-events-none custom-range-thumb"
-      />
+
+      {/* Dropdowns */}
+      <div className="flex items-center gap-2">
+        <select
+          value={val[0]}
+          onChange={(e) => {
+            const next = Number(e.target.value);
+            setVal([Math.min(next, val[1]), val[1]]);
+          }}
+          className="flex-1 px-3 py-2 rounded-xl border-2 border-[var(--pajak-border)] text-sm font-bold text-gray-800 bg-white focus:outline-none focus:border-[var(--pajak-primary)] transition-colors text-center cursor-pointer"
+        >
+          {ALL_YEARS.map((y) => (
+            <option key={y} value={y} disabled={y > val[1]}>{y}</option>
+          ))}
+        </select>
+        <span className="text-gray-300 font-black text-base shrink-0">–</span>
+        <select
+          value={val[1]}
+          onChange={(e) => {
+            const next = Number(e.target.value);
+            setVal([val[0], Math.max(next, val[0])]);
+          }}
+          className="flex-1 px-3 py-2 rounded-xl border-2 border-[var(--pajak-border)] text-sm font-bold text-gray-800 bg-white focus:outline-none focus:border-[var(--pajak-primary)] transition-colors text-center cursor-pointer"
+        >
+          {ALL_YEARS.map((y) => (
+            <option key={y} value={y} disabled={y < val[0]}>{y}</option>
+          ))}
+        </select>
+      </div>
     </div>
-    <div className="flex justify-between font-black text-sm text-gray-800">
-      <span className="bg-gray-50 px-3 py-1 rounded-md border border-gray-100 shadow-sm">{val[0]}</span>
-      <span className="bg-gray-50 px-3 py-1 rounded-md border border-gray-100 shadow-sm">{val[1]}</span>
-    </div>
-  </div>
-);
+  );
+};
 
 export default FilterModal;
