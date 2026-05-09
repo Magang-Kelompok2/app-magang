@@ -9,6 +9,7 @@ import {
 export interface Source {
   nomor: string;
   jenis_pajak: string;
+  jenis_sengketa: string[];
   amar: string;
   tahun: string;
   skor: number;
@@ -90,6 +91,7 @@ function normalizeSources(sources: unknown): Source[] {
     normalized.push({
       nomor,
       jenis_pajak: typeof source.jenis_pajak === "string" ? source.jenis_pajak : "-",
+      jenis_sengketa: Array.isArray(source.jenis_sengketa) ? source.jenis_sengketa : [],
       amar: typeof source.amar === "string" ? source.amar : "-",
       tahun: typeof source.tahun === "string" || typeof source.tahun === "number" ? String(source.tahun) : "-",
       skor: typeof source.skor === "number" ? source.skor : 0,

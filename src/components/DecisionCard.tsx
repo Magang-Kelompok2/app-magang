@@ -10,6 +10,7 @@ interface DecisionCardProps {
     pemohon?: string;
     termohon?: string;
     jenis_pajak?: string;
+    jenis_sengketa?: string[];
     amar_putusan?: string;
     upaya_hukum?: string;
     tanggal_putusan?: string;

@@ -6,6 +6,7 @@ import { ChevronLeft } from 'lucide-react';
 interface DashboardFilters {
   status: string[];
   jenisPajak: string[];
+  jenisSengketa: string[];
   upayaHukum: string[];
   pengadilan: string;
   tahunPutusan: [number, number];
@@ -19,9 +20,25 @@ interface FilterModalProps {
   initialFilters?: DashboardFilters;
 }
 
+const JENIS_PAJAK_OPTIONS = [
+  'PPh Pasal 21', 'PPh Pasal 22', 'PPh Pasal 23', 'PPh Pasal 26',
+  'PPh Pasal 23/26', 'PPh Badan', 'PPh Final Pasal 4(2)', 'PPh Pasal 15',
+  'PPh Pasal 25/29', 'PPh Lainnya', 'PPN', 'PPnBM', 'Kepabeanan',
+  'PBB & BPHTB', 'Pajak Daerah', 'Sanksi & Administrasi', 'Tidak Teridentifikasi',
+];
+
+const JENIS_SENGKETA_OPTIONS = [
+  'Transfer Pricing', 'BUT & Tax Treaty', 'Koreksi PPh Badan', 'Koreksi PPN',
+  'PPh Pemotongan/Pemungutan', 'Sengketa Kepabeanan', 'Klasifikasi Objek Pajak',
+  'Sengketa Dokumen & Faktur', 'Sengketa Prosedur & Formal', 'Sanksi Administrasi',
+  'Restitusi & Imbalan Bunga', 'NJOP / PBB', 'Saat Terutang & Pengakuan',
+  'Kewenangan Pajak', 'Lainnya',
+];
+
 const DEFAULT: DashboardFilters = {
   status: [],
   jenisPajak: [],
+  jenisSengketa: [],
   upayaHukum: [],
   pengadilan: 'Semua',
   tahunPutusan: [2006, 2024],
@@ -35,6 +52,7 @@ const FilterModal = ({ isOpen, onClose, onApplyFilter, initialFilters }: FilterM
   const [tahunPajak, setTahunPajak] = useState<[number, number]>(base.tahunPajak);
   const [selectedStatus, setSelectedStatus] = useState<string[]>(base.status);
   const [selectedPajak, setSelectedPajak] = useState<string[]>(base.jenisPajak);
+  const [selectedSengketa, setSelectedSengketa] = useState<string[]>(base.jenisSengketa);
   const [selectedUpaya, setSelectedUpaya] = useState<string[]>(base.upayaHukum);
   const [selectedPengadilan, setSelectedPengadilan] = useState<string>(base.pengadilan === 'Semua' ? '' : base.pengadilan);
 
@@ -46,6 +64,7 @@ const FilterModal = ({ isOpen, onClose, onApplyFilter, initialFilters }: FilterM
     setTahunPajak(b.tahunPajak);
     setSelectedStatus(b.status);
     setSelectedPajak(b.jenisPajak);
+    setSelectedSengketa(b.jenisSengketa);
     setSelectedUpaya(b.upayaHukum);
     setSelectedPengadilan(b.pengadilan === 'Semua' ? '' : b.pengadilan);
   }, [isOpen, initialFilters]);
@@ -62,6 +81,7 @@ const FilterModal = ({ isOpen, onClose, onApplyFilter, initialFilters }: FilterM
     onApplyFilter({
       status: selectedStatus,
       jenisPajak: selectedPajak,
+      jenisSengketa: selectedSengketa,
       upayaHukum: selectedUpaya,
       pengadilan: selectedPengadilan || 'Semua',
       tahunPutusan,
@@ -115,12 +135,27 @@ const FilterModal = ({ isOpen, onClose, onApplyFilter, initialFilters }: FilterM
           <section>
             <h4 className="font-bold text-gray-800 mb-4 text-sm">Jenis Pajak</h4>
             <div className="flex flex-wrap gap-3">
-              {['PPh 26', 'PPh Badan', 'Transfer Pricing', 'Bentuk Usaha Tetap', 'Tax Treaty'].map(pajak => (
+              {JENIS_PAJAK_OPTIONS.map(pajak => (
                 <FilterChip
                   key={pajak}
                   label={pajak}
                   active={selectedPajak.includes(pajak)}
                   onClick={() => toggleFilter(selectedPajak, setSelectedPajak, pajak)}
+                />
+              ))}
+            </div>
+          </section>
+
+          {/* Jenis Sengketa */}
+          <section>
+            <h4 className="font-bold text-gray-800 mb-4 text-sm">Jenis Sengketa</h4>
+            <div className="flex flex-wrap gap-3">
+              {JENIS_SENGKETA_OPTIONS.map(sengketa => (
+                <FilterChip
+                  key={sengketa}
+                  label={sengketa}
+                  active={selectedSengketa.includes(sengketa)}
+                  onClick={() => toggleFilter(selectedSengketa, setSelectedSengketa, sengketa)}
                 />
               ))}
             </div>

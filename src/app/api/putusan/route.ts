@@ -61,6 +61,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     const status = searchParams.get("status");
     const jenisPajak = searchParams.get("jenisPajak");
+    const jenisSengketa = searchParams.get("jenisSengketa");
     const upayaHukum = searchParams.get("upayaHukum");
     const pengadilan = searchParams.get("pengadilan");
     const tahunPutusan = searchParams.get("tahunPutusan");
@@ -92,16 +93,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
 
     if (isValidParam(jenisPajak)) {
-      const arr = jenisPajak.split(",").map((p) => p.trim().toLowerCase()).filter(Boolean);
+      const arr = jenisPajak.split(",").map((p) => p.trim()).filter(Boolean);
       if (arr.length > 0) {
-        const paramRef = addParam(arr);
-        conditions.push(`
-          EXISTS (
-            SELECT 1
-            FROM unnest(${paramRef}::text[]) AS selected_jenis
-            WHERE LOWER(COALESCE(jenis_pajak, '')) LIKE '%' || selected_jenis || '%'
-          )
-        `);
+        conditions.push(`jenis_pajak = ANY(${addParam(arr)}::text[])`);
+      }
+    }
+
+    if (isValidParam(jenisSengketa)) {
+      const arr = jenisSengketa.split(",").map((s) => s.trim()).filter(Boolean);
+      if (arr.length > 0) {
+        conditions.push(`jenis_sengketa && ${addParam(arr)}::text[]`);
       }
     }
 
@@ -176,6 +177,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           pemohon,
           termohon,
           jenis_pajak,
+          jenis_sengketa,
           amar_putusan,
           upaya_hukum,
           tanggal_putusan,
@@ -191,7 +193,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           FROM (
             SELECT
               id, nomor_putusan_pp, nomor_putusan_pk, pemohon, termohon,
-              jenis_pajak, amar_putusan, upaya_hukum, tanggal_putusan,
+              jenis_pajak, jenis_sengketa, amar_putusan, upaya_hukum, tanggal_putusan,
               objek_sengketa, preview_sengketa
             FROM filtered
             ORDER BY tanggal_putusan DESC NULLS LAST, id DESC

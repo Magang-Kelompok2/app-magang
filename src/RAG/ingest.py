@@ -92,6 +92,7 @@ for data in data_list:
     pemohon         = data.get('pemohon')
     termohon        = data.get('termohon')
     jenis_pajak     = data.get('jenis_pajak')
+    jenis_sengketa  = data.get('jenis_sengketa') or []
     tahun_pajak     = data.get('tahun_pajak')
     
     objek           = data.get('objek_sengketa')
@@ -128,7 +129,7 @@ for data in data_list:
             INSERT INTO putusan_pajak (
                 nomor_putusan_pk, nomor_putusan_pp, tahun_putusan, 
                 tanggal_putusan, upaya_hukum, pengadilan,
-                pemohon, termohon, jenis_pajak, tahun_pajak,
+                pemohon, termohon, jenis_pajak, jenis_sengketa, tahun_pajak,
                 objek_sengketa, preview_sengketa, pos_koreksi,
                 nilai_koreksi, dasar_hukum_fiskus, argumen_pemohon,
                 argumen_terbanding, amar_putusan, alat_bukti,
@@ -136,11 +137,11 @@ for data in data_list:
                 nama_file, hakim_ketua, hakim_anggota,
                 embedding_konten
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """, (
             nomor_pk, nomor_pp, tahun_int,
             formatted_date, upaya_hukum, pengadilan,
-            pemohon, termohon, jenis_pajak, tahun_pajak,
+            pemohon, termohon, jenis_pajak, jenis_sengketa, tahun_pajak,
             objek, preview, pos_koreksi,
             nilai_koreksi, dasar_hukum, argumen_pemohon,
             argumen_terbanding, amar, alat_bukti,

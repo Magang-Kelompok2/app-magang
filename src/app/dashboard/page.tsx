@@ -12,6 +12,7 @@ interface PutusanListItem {
   pemohon?: string;
   termohon?: string;
   jenis_pajak?: string;
+  jenis_sengketa?: string[];
   amar_putusan?: string;
   upaya_hukum?: string;
   tanggal_putusan?: string;
@@ -22,6 +23,7 @@ interface PutusanListItem {
 interface DashboardFilters {
   status: string[];
   jenisPajak: string[];
+  jenisSengketa: string[];
   upayaHukum: string[];
   pengadilan: string;
   tahunPutusan: [number, number];
@@ -46,13 +48,14 @@ interface DashboardResponse {
 const DEFAULT_FILTERS: DashboardFilters = {
   status: [],
   jenisPajak: [],
+  jenisSengketa: [],
   upayaHukum: [],
   pengadilan: 'Semua',
   tahunPutusan: [2006, 2024],
   tahunPajak: [2006, 2024],
 };
 
-const LS_FILTERS_KEY = 'kapha_dashboard_filters_v1';
+const LS_FILTERS_KEY = 'kapha_dashboard_filters_v2';
 const LS_KEYWORDS_KEY = 'kapha_dashboard_keywords_v1';
 
 function loadFromStorage<T>(key: string, fallback: T): T {
@@ -118,6 +121,7 @@ export default function DashboardPage() {
       const params = new URLSearchParams({
         status: filters.status.join(','),
         jenisPajak: filters.jenisPajak.join(','),
+        jenisSengketa: filters.jenisSengketa.join(','),
         upayaHukum: filters.upayaHukum.join(','),
         pengadilan: filters.pengadilan,
         tahunPutusan: filters.tahunPutusan.join(','),
@@ -172,6 +176,9 @@ export default function DashboardPage() {
     );
     filters.jenisPajak.forEach((p) =>
       badges.push({ label: `Pajak: ${p}`, onRemove: () => setFilters((f) => ({ ...f, jenisPajak: f.jenisPajak.filter((x) => x !== p) })) })
+    );
+    filters.jenisSengketa.forEach((s) =>
+      badges.push({ label: `Sengketa: ${s}`, onRemove: () => setFilters((f) => ({ ...f, jenisSengketa: f.jenisSengketa.filter((x) => x !== s) })) })
     );
     filters.upayaHukum.forEach((u) =>
       badges.push({ label: `Upaya: ${u}`, onRemove: () => setFilters((f) => ({ ...f, upayaHukum: f.upayaHukum.filter((x) => x !== u) })) })

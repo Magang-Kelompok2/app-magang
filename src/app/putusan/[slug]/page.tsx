@@ -27,6 +27,7 @@ interface PutusanRow {
   nomor_putusan_pk?: string;
   amar_putusan: string;
   jenis_pajak?: string;
+  jenis_sengketa?: string[];
   upaya_hukum?: string;
   pengadilan?: string;
   tahun_pajak?: string | number;
@@ -805,6 +806,20 @@ export default function PutusanDetailPage() {
                   <InfoPill icon={<Globe size={14} />} label="Negara Lawan" value={display(data.negara_lawan_transaksi)} color="#EC4899" />
                 )}
               </div>
+              {Array.isArray(data.jenis_sengketa) && data.jenis_sengketa.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-2 items-center">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mr-1">Jenis Sengketa</span>
+                  {data.jenis_sengketa.map((s) => (
+                    <span
+                      key={s}
+                      className="px-3 py-1 rounded-full text-[11px] font-semibold border"
+                      style={{ background: '#7C3AED0d', borderColor: '#7C3AED30', color: '#7C3AED' }}
+                    >
+                      {s}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Tabs card */}
