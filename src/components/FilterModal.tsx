@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, ChevronDown, Check, X } from 'lucide-react';
 
 interface DashboardFilters {
   status: string[];
@@ -133,32 +133,24 @@ const FilterModal = ({ isOpen, onClose, onApplyFilter, initialFilters }: FilterM
 
           {/* Jenis Pajak */}
           <section>
-            <h4 className="font-bold text-gray-800 mb-4 text-sm">Jenis Pajak</h4>
-            <div className="flex flex-wrap gap-3">
-              {JENIS_PAJAK_OPTIONS.map(pajak => (
-                <FilterChip
-                  key={pajak}
-                  label={pajak}
-                  active={selectedPajak.includes(pajak)}
-                  onClick={() => toggleFilter(selectedPajak, setSelectedPajak, pajak)}
-                />
-              ))}
-            </div>
+            <h4 className="font-bold text-gray-800 mb-3 text-sm">Jenis Pajak</h4>
+            <MultiSelectDropdown
+              placeholder="Pilih jenis pajak..."
+              options={JENIS_PAJAK_OPTIONS}
+              value={selectedPajak}
+              onChange={setSelectedPajak}
+            />
           </section>
 
           {/* Jenis Sengketa */}
           <section>
-            <h4 className="font-bold text-gray-800 mb-4 text-sm">Jenis Sengketa</h4>
-            <div className="flex flex-wrap gap-3">
-              {JENIS_SENGKETA_OPTIONS.map(sengketa => (
-                <FilterChip
-                  key={sengketa}
-                  label={sengketa}
-                  active={selectedSengketa.includes(sengketa)}
-                  onClick={() => toggleFilter(selectedSengketa, setSelectedSengketa, sengketa)}
-                />
-              ))}
-            </div>
+            <h4 className="font-bold text-gray-800 mb-3 text-sm">Jenis Sengketa</h4>
+            <MultiSelectDropdown
+              placeholder="Pilih jenis sengketa..."
+              options={JENIS_SENGKETA_OPTIONS}
+              value={selectedSengketa}
+              onChange={setSelectedSengketa}
+            />
           </section>
 
           {/* Upaya Hukum */}
@@ -217,6 +209,173 @@ const FilterModal = ({ isOpen, onClose, onApplyFilter, initialFilters }: FilterM
 };
 
 /* --- Sub-Components --- */
+
+const SingleSelectDropdown = ({
+  placeholder, options, value, onChange,
+}: {
+  placeholder: string;
+  options: string[];
+  value: string;
+  onChange: (v: string) => void;
+}) => {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative">
+      {/* Trigger */}
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className={`
+          w-full flex items-center justify-between px-4 py-3 rounded-2xl border-2 text-sm font-semibold
+          transition-all duration-200 bg-white
+          ${open
+            ? 'border-[var(--pajak-primary)] ring-4 ring-blue-50'
+            : 'border-[var(--pajak-border)] hover:border-gray-300'}
+        `}
+      >
+        <span className={value ? 'text-gray-800' : 'text-gray-400'}>
+          {value || placeholder}
+        </span>
+        <div className="flex items-center gap-1">
+          {value && (
+            <span
+              role="button"
+              onClick={(e) => { e.stopPropagation(); onChange(''); }}
+              className="p-0.5 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <X size={13} />
+            </span>
+          )}
+          <ChevronDown
+            size={16}
+            className={`text-gray-400 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+          />
+        </div>
+      </button>
+
+      {/* Inline list */}
+      {open && (
+        <div className="mt-2 border-2 border-[var(--pajak-border)] rounded-2xl overflow-hidden bg-white shadow-lg">
+          <div className="overflow-y-auto max-h-52 custom-scrollbar">
+            {options.map((opt) => {
+              const selected = value === opt;
+              return (
+                <button
+                  key={opt}
+                  type="button"
+                  onClick={() => { onChange(selected ? '' : opt); setOpen(false); }}
+                  className={`
+                    w-full flex items-center justify-between px-4 py-2.5 text-sm text-left
+                    transition-colors duration-150
+                    ${selected
+                      ? 'bg-blue-50 text-[var(--pajak-primary)] font-bold'
+                      : 'text-gray-700 font-medium hover:bg-gray-50'}
+                  `}
+                >
+                  <span>{opt}</span>
+                  {selected && <Check size={14} strokeWidth={3} className="text-[var(--pajak-primary)] shrink-0" />}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const MultiSelectDropdown = ({
+  placeholder, options, value, onChange,
+}: {
+  placeholder: string;
+  options: string[];
+  value: string[];
+  onChange: (v: string[]) => void;
+}) => {
+  const [open, setOpen] = useState(false);
+
+  const toggle = (opt: string) => {
+    onChange(value.includes(opt) ? value.filter((x) => x !== opt) : [...value, opt]);
+  };
+
+  return (
+    <div className="relative">
+      {/* Trigger */}
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className={`
+          w-full flex items-center justify-between px-4 py-3 rounded-2xl border-2 text-sm font-semibold
+          transition-all duration-200 bg-white
+          ${open
+            ? 'border-[var(--pajak-primary)] ring-4 ring-blue-50'
+            : 'border-[var(--pajak-border)] hover:border-gray-300'}
+        `}
+      >
+        <div className="flex items-center gap-2 flex-wrap flex-1 min-w-0">
+          {value.length === 0 ? (
+            <span className="text-gray-400">{placeholder}</span>
+          ) : (
+            value.map((v) => (
+              <span
+                key={v}
+                className="flex items-center gap-1 bg-blue-50 text-[var(--pajak-primary)] text-[11px] font-bold px-2.5 py-1 rounded-full border border-blue-100"
+              >
+                {v}
+                <span
+                  role="button"
+                  onClick={(e) => { e.stopPropagation(); toggle(v); }}
+                  className="hover:text-blue-800 transition-colors"
+                >
+                  <X size={10} />
+                </span>
+              </span>
+            ))
+          )}
+        </div>
+        <ChevronDown
+          size={16}
+          className={`text-gray-400 transition-transform duration-200 shrink-0 ml-2 ${open ? 'rotate-180' : ''}`}
+        />
+      </button>
+
+      {/* Inline list */}
+      {open && (
+        <div className="mt-2 border-2 border-[var(--pajak-border)] rounded-2xl overflow-hidden bg-white shadow-lg">
+          <div className="overflow-y-auto max-h-52 custom-scrollbar">
+            {options.map((opt) => {
+              const selected = value.includes(opt);
+              return (
+                <button
+                  key={opt}
+                  type="button"
+                  onClick={() => toggle(opt)}
+                  className={`
+                    w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left
+                    transition-colors duration-150
+                    ${selected
+                      ? 'bg-blue-50 text-[var(--pajak-primary)] font-bold'
+                      : 'text-gray-700 font-medium hover:bg-gray-50'}
+                  `}
+                >
+                  <div className={`
+                    w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-all
+                    ${selected
+                      ? 'bg-[var(--pajak-primary)] border-[var(--pajak-primary)]'
+                      : 'border-gray-300 bg-white'}
+                  `}>
+                    {selected && <Check size={10} strokeWidth={3} className="text-white" />}
+                  </div>
+                  <span>{opt}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 const FilterChip = ({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) => (
   <button
