@@ -1,14 +1,11 @@
 "use client";
 
 import { useEffect } from "react";
-import { useSession, signOut } from "next-auth/react";
+import { useSession } from "next-auth/react";
 
 /**
- * Cek saat browser dibuka kembali:
- * - Kalau user login tanpa "Ingat Aku", sessionStorage diberi flag "session-keep-alive"
- * - SessionStorage otomatis hilang saat semua tab browser ditutup
- * - Kalau flag tidak ada tapi session JWT masih valid → berarti browser pernah ditutup
- *   tanpa remember me → paksa sign out
+ * Session guard - maintain session flags across tabs
+ * JWT validity & expiry di-handle oleh NextAuth & middleware
  */
 export default function SessionGuard() {
   const { status } = useSession();
@@ -16,13 +13,9 @@ export default function SessionGuard() {
   useEffect(() => {
     if (status !== "authenticated") return;
 
-    const keepAlive = sessionStorage.getItem("session-keep-alive");
-    const remembered = localStorage.getItem("remember-me");
-
-    // Kalau tidak ada flag sama sekali (bukan sesi ini & bukan remember me) → sign out
-    if (!keepAlive && remembered !== "true") {
-      signOut({ callbackUrl: "/login" });
-    }
+    // Maintain session-active flag saat authenticated
+    // Ini memastikan flag ada di localStorage untuk semua tab
+    localStorage.setItem("session-active", "true");
   }, [status]);
 
   return null;

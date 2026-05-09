@@ -34,15 +34,14 @@ export default function LoginPage() {
     if (res?.error) {
       setError("Email atau password salah.");
     } else {
-      // Kalau TIDAK ingat aku, tandai di sessionStorage.
-      // SessionStorage otomatis hilang saat browser ditutup → SessionGuard
-      // akan signOut otomatis saat browser dibuka kembali.
+      // Kalau ingat aku dicheck, simpan di localStorage agar persistent
       if (rememberMe) {
         localStorage.setItem("remember-me", "true");
       } else {
         localStorage.removeItem("remember-me");
-        sessionStorage.setItem("session-keep-alive", "1");
       }
+      // Set session active flag di localStorage supaya shared across tabs
+      localStorage.setItem("session-active", "true");
       router.push("/dashboard");
       router.refresh();
     }
