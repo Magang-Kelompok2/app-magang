@@ -58,7 +58,6 @@ type TabKey = "ringkasan" | "argumen" | "pertimbangan" | "amar";
 
 // ── Safe display helpers ──────────────────────────────────────────────────────
 
-/** Returns "-" for any null / undefined / empty string value */
 function display(value: string | number | undefined | null, fallback = "-"): string {
   if (value == null) return fallback;
   const s = String(value).trim();
@@ -83,26 +82,46 @@ function getPartyLabels(hasPk: boolean) {
       };
 }
 
-
 function getStatusConfig(amar: string) {
   const l = (amar ?? "").toLowerCase();
 
   if (l.includes("seluruh") || (l.includes("kabul") && !l.includes("sebagian"))) {
-    return { color: "#10B981", bg: "rgba(16,185,129,0.08)", border: "rgba(16,185,129,0.25)", badgeBg: "rgba(16,185,129,0.12)" };
+    return { color: "#059669", bg: "rgba(5,150,105,0.10)", border: "rgba(5,150,105,0.35)", badgeBg: "rgba(5,150,105,0.14)" };
   }
   if (l.includes("sebagian")) {
-    return { color: "#F59E0B", bg: "rgba(245,158,11,0.08)", border: "rgba(245,158,11,0.25)", badgeBg: "rgba(245,158,11,0.12)" };
+    return { color: "#D97706", bg: "rgba(217,119,6,0.10)", border: "rgba(217,119,6,0.35)", badgeBg: "rgba(217,119,6,0.14)" };
   }
   if (l.includes("tolak") || l.includes("menolak")) {
-    return { color: "#EF4444", bg: "rgba(239,68,68,0.08)", border: "rgba(239,68,68,0.25)", badgeBg: "rgba(239,68,68,0.12)" };
+    return { color: "#DC2626", bg: "rgba(220,38,38,0.10)", border: "rgba(220,38,38,0.35)", badgeBg: "rgba(220,38,38,0.14)" };
   }
   if (l.includes("tidak") || l.includes("diterima")) {
-    return { color: "#6B7280", bg: "rgba(107,114,128,0.08)", border: "rgba(107,114,128,0.25)", badgeBg: "rgba(107,114,128,0.12)" };
+    return { color: "#64748B", bg: "rgba(100,116,139,0.10)", border: "rgba(100,116,139,0.35)", badgeBg: "rgba(100,116,139,0.14)" };
   }
   if (l.includes("membatalkan") || l.includes("batal")) {
-    return { color: "#8B5CF6", bg: "rgba(139,92,246,0.08)", border: "rgba(139,92,246,0.25)", badgeBg: "rgba(139,92,246,0.12)" };
+    return { color: "#0E7490", bg: "rgba(14,116,144,0.10)", border: "rgba(14,116,144,0.35)", badgeBg: "rgba(14,116,144,0.14)" };
   }
-  return { color: "#0EA5E9", bg: "rgba(14,165,233,0.08)", border: "rgba(14,165,233,0.25)", badgeBg: "rgba(14,165,233,0.12)" };
+  return { color: "#B45309", bg: "rgba(180,83,9,0.10)", border: "rgba(180,83,9,0.35)", badgeBg: "rgba(180,83,9,0.14)" };
+}
+
+function getSengketaColor(s: string): { bg: string; border: string; text: string } {
+  const lower = s.toLowerCase();
+  if (lower.includes("transfer pricing"))
+    return { bg: "#EFF6FF", border: "#93C5FD", text: "#1D4ED8" };
+  if (lower.includes("tax treaty") || lower.includes("but"))
+    return { bg: "#FFF7ED", border: "#FDBA74", text: "#C2410C" };
+  if (lower.includes("ppn"))
+    return { bg: "#F0FDF4", border: "#6EE7B7", text: "#065F46" };
+  if (lower.includes("pph badan") || (lower.includes("pph") && lower.includes("badan")))
+    return { bg: "#FEFCE8", border: "#FDE047", text: "#854D0E" };
+  if (lower.includes("pph pasal"))
+    return { bg: "#F5F3FF", border: "#C4B5FD", text: "#5B21B6" };
+  if (lower.includes("pph orang") || lower.includes("pribadi"))
+    return { bg: "#FDF4FF", border: "#E879F9", text: "#86198F" };
+  if (lower.includes("bea masuk") || lower.includes("cukai"))
+    return { bg: "#FFF1F2", border: "#FDA4AF", text: "#BE123C" };
+  if (lower.includes("pajak bumi") || lower.includes("pbb"))
+    return { bg: "#F0FDF4", border: "#86EFAC", text: "#166534" };
+  return { bg: "#F8FAFC", border: "#CBD5E1", text: "#475569" };
 }
 
 function parseHakim(raw?: string | string[]): string[] {
@@ -150,8 +169,14 @@ function InfoPill({
 }) {
   return (
     <div
-      className="w-full flex items-center gap-3 rounded-2xl px-4 py-3 border"
-      style={{ background: `${color}0d`, borderColor: `${color}30` }}
+      className="w-full flex items-center gap-3 rounded-2xl px-4 py-3"
+      style={{
+        background: `${color}0d`,
+        borderTop: "1px solid rgba(0,0,0,0.07)",
+        borderRight: "1px solid rgba(0,0,0,0.07)",
+        borderBottom: "1px solid rgba(0,0,0,0.07)",
+        borderLeft: `3px solid ${color}`,
+      }}
     >
       <div
         className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
@@ -199,7 +224,7 @@ function SectionCard({
         </p>
       </div>
       <p
-        className={`text-[13px] leading-relaxed ${shown === "-" ? "text-gray-400 italic" : "text-gray-700"}`}
+        className={`text-[14px] leading-relaxed ${shown === "-" ? "text-gray-400 italic" : "text-gray-700"}`}
         style={{ fontFamily: "var(--font-montserrat)" }}
       >
         {shown}
@@ -222,12 +247,12 @@ function PartyCard({
   const shown = display(name);
   return (
     <div
-      className="rounded-2xl border p-5 flex items-start gap-4"
-      style={{ background: `${color}06`, borderColor: `${color}20` }}
+      className="rounded-2xl border-2 p-5 flex items-start gap-4"
+      style={{ background: `${color}12`, borderColor: `${color}50` }}
     >
       <div
         className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
-        style={{ backgroundColor: `${color}15` }}
+        style={{ backgroundColor: `${color}25` }}
       >
         <span style={{ color }}>{icon}</span>
       </div>
@@ -264,7 +289,6 @@ function PdfModal({ namaFile, onClose }: { namaFile: string; onClose: () => void
   const eventBusRef = useRef<any>(null);
   const viewerSetup = useRef(false);
 
-  // Fetch PDF blob
   useEffect(() => {
     let cancelled = false;
     fetch(`/api/pdf/${encodeURIComponent(namaFile)}`)
@@ -282,15 +306,12 @@ function PdfModal({ namaFile, onClose }: { namaFile: string; onClose: () => void
     };
   }, [namaFile]);
 
-  // Setup pdfjs-dist viewer + findController once blob is ready
   useEffect(() => {
     if (!blobUrl || viewerSetup.current || !containerRef.current || !viewerDivRef.current) return;
     viewerSetup.current = true;
 
     (async () => {
       try {
-        // pdfjs-dist must be imported FIRST and set as globalThis.pdfjsLib
-        // because pdf_viewer.mjs reads globalThis.pdfjsLib at module evaluation time
         const pdfjs = await import("pdfjs-dist");
         pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -321,7 +342,7 @@ function PdfModal({ namaFile, onClose }: { namaFile: string; onClose: () => void
         eventBus.on("updatefindcontrolstate", ({ state, matchesCount }: any) => {
           if (matchesCount) {
             setMatchInfo({ current: matchesCount.current, total: matchesCount.total });
-          } else if (state === 3 /* NOT_FOUND */) {
+          } else if (state === 3) {
             setMatchInfo({ current: 0, total: 0 });
           }
         });
@@ -339,7 +360,6 @@ function PdfModal({ namaFile, onClose }: { namaFile: string; onClose: () => void
 
   const execFind = (type: "find" | "findagain", findPrevious = false) => {
     if (!eventBusRef.current || !searchTerm.trim()) return;
-    // PDFFindController listens to "find" events on the EventBus
     eventBusRef.current.dispatch("find", {
       query: searchTerm.trim(),
       highlightAll: true,
@@ -352,7 +372,6 @@ function PdfModal({ namaFile, onClose }: { namaFile: string; onClose: () => void
 
   return (
     <div className="fixed h-full inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      {/* Override pdfjs default highlight colors to yellow */}
       <style>{`
         .textLayer .highlight { background-color: rgba(250, 204, 21, 0.45) !important; border-radius: 2px; }
         .textLayer .highlight.selected { background-color: rgba(234, 88, 12, 0.55) !important; }
@@ -360,7 +379,6 @@ function PdfModal({ namaFile, onClose }: { namaFile: string; onClose: () => void
       `}</style>
 
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl h-[90vh] flex flex-col overflow-hidden">
-        {/* Header */}
         <div className="flex items-center justify-between gap-4 px-5 py-3 border-b shrink-0">
           <div className="min-w-0 flex-1">
             <span className="text-sm text-gray-700 truncate block max-w-[400px]">{namaFile}</span>
@@ -385,7 +403,6 @@ function PdfModal({ namaFile, onClose }: { namaFile: string; onClose: () => void
           </div>
         </div>
 
-        {/* Search bar */}
         <div className="flex flex-wrap items-center gap-3 px-5 py-3 border-b bg-white shrink-0">
           <div className="relative min-w-[260px] flex-1">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -394,13 +411,13 @@ function PdfModal({ namaFile, onClose }: { namaFile: string; onClose: () => void
               onChange={(e) => setSearchTerm(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); execFind("find"); } }}
               placeholder="Cari kata di PDF..."
-              className="w-full rounded-xl border border-gray-200 bg-gray-50 pl-9 pr-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:border-[var(--pajak-primary)] focus:bg-white"
+              className="w-full rounded-xl border border-gray-200 bg-gray-50 pl-9 pr-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:border-(--pajak-primary) focus:bg-white"
             />
           </div>
           <button
             onClick={() => execFind("find")}
             disabled={!viewerReady}
-            className="rounded-xl bg-[var(--pajak-primary)] px-4 py-2 text-xs font-semibold text-white disabled:opacity-50"
+            className="rounded-xl bg-(--pajak-primary) px-4 py-2 text-xs font-semibold text-white disabled:opacity-50"
           >
             Cari
           </button>
@@ -429,13 +446,10 @@ function PdfModal({ namaFile, onClose }: { namaFile: string; onClose: () => void
           </div>
         </div>
 
-        {/* PDF Viewer — pdfjs-dist native viewer with built-in Ctrl+F-like search */}
-        {/* Outer wrapper: relative + flex-1 so the absolute container fills it */}
         <div className="flex-1 relative bg-gray-100 overflow-hidden">
           {!blobUrl && (
             <div className="absolute inset-0 flex items-center justify-center text-gray-400">Memuat PDF...</div>
           )}
-          {/* pdfjs PDFViewer requires container to have position:absolute */}
           <div ref={containerRef} className="absolute inset-0 overflow-auto">
             <div ref={viewerDivRef} className="pdfViewer" />
           </div>
@@ -478,23 +492,23 @@ function RingkasanTab({ d }: { d: PutusanRow }) {
           </div>
           <div className="flex flex-wrap gap-3">
             {d.hakim_ketua && (
-              <div className="flex items-center gap-3 bg-red-50 border border-red-100 rounded-xl px-4 py-2.5">
+              <div className="flex items-center gap-3 border-2 border-red-200 bg-red-50 rounded-xl px-4 py-2.5">
                 <div className="w-7 h-7 rounded-lg bg-red-100 flex items-center justify-center">
-                  <User size={12} className="text-red-500" />
+                  <User size={12} className="text-red-600" />
                 </div>
                 <div>
-                  <p className="text-[9px] uppercase text-red-400 font-bold tracking-widest" style={{ fontFamily: "var(--font-montserrat)" }}>Ketua</p>
+                  <p className="text-[9px] uppercase text-red-600 font-bold tracking-widest" style={{ fontFamily: "var(--font-montserrat)" }}>Ketua</p>
                   <p className="text-[12px] font-semibold text-gray-800" style={{ fontFamily: "var(--font-montserrat)" }}>{d.hakim_ketua}</p>
                 </div>
               </div>
             )}
             {hakimAnggota.map((h, i) => (
-              <div key={i} className="flex items-center gap-3 bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-2.5">
+              <div key={i} className="flex items-center gap-3 border-2 border-emerald-200 bg-emerald-50 rounded-xl px-4 py-2.5">
                 <div className="w-7 h-7 rounded-lg bg-emerald-100 flex items-center justify-center">
-                  <Users size={12} className="text-emerald-600" />
+                  <Users size={12} className="text-emerald-700" />
                 </div>
                 <div>
-                  <p className="text-[9px] uppercase text-emerald-500 font-bold tracking-widest" style={{ fontFamily: "var(--font-montserrat)" }}>Anggota</p>
+                  <p className="text-[9px] uppercase text-emerald-700 font-bold tracking-widest" style={{ fontFamily: "var(--font-montserrat)" }}>Anggota</p>
                   <p className="text-[12px] font-semibold text-gray-800" style={{ fontFamily: "var(--font-montserrat)" }}>{h}</p>
                 </div>
               </div>
@@ -513,34 +527,34 @@ function ArgumenTab({ d }: { d: PutusanRow }) {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+        <div className="bg-white rounded-2xl border-2 border-red-100 p-5 shadow-sm">
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-8 h-8 rounded-xl bg-red-50 border border-red-100 flex items-center justify-center">
-              <User size={13} className="text-red-500" />
+            <div className="w-8 h-8 rounded-xl bg-red-600 flex items-center justify-center shrink-0">
+              <User size={13} className="text-white" />
             </div>
             <div>
-              <p className="text-[9px] uppercase font-bold text-red-400 tracking-widest" style={{ fontFamily: "var(--font-montserrat)" }}>{labels.primary}</p>
+              <p className="text-[9px] uppercase font-bold text-red-600 tracking-widest" style={{ fontFamily: "var(--font-montserrat)" }}>{labels.primary}</p>
               <p className="text-[11px] font-semibold text-gray-700" style={{ fontFamily: "var(--font-montserrat)" }}>{display(d.pemohon)}</p>
             </div>
           </div>
-          <div className="h-px bg-gray-100 mb-4" />
-          <p className={`text-[13px] leading-relaxed ${!d.argumen_pemohon ? "text-gray-400 italic" : "text-gray-600"}`} style={{ fontFamily: "var(--font-montserrat)" }}>
+          <div className="h-px bg-red-100 mb-4" />
+          <p className={`text-[14px] leading-relaxed ${!d.argumen_pemohon ? "text-gray-400 italic" : "text-gray-600"}`} style={{ fontFamily: "var(--font-montserrat)" }}>
             {display(d.argumen_pemohon)}
           </p>
         </div>
 
-        <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+        <div className="bg-white rounded-2xl border-2 border-emerald-100 p-5 shadow-sm">
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-8 h-8 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center">
-              <User size={13} className="text-emerald-600" />
+            <div className="w-8 h-8 rounded-xl bg-emerald-600 flex items-center justify-center shrink-0">
+              <User size={13} className="text-white" />
             </div>
             <div>
-              <p className="text-[9px] uppercase font-bold text-emerald-500 tracking-widest" style={{ fontFamily: "var(--font-montserrat)" }}>{labels.secondary}</p>
+              <p className="text-[9px] uppercase font-bold text-emerald-700 tracking-widest" style={{ fontFamily: "var(--font-montserrat)" }}>{labels.secondary}</p>
               <p className="text-[11px] font-semibold text-gray-700" style={{ fontFamily: "var(--font-montserrat)" }}>{display(pihakLawan)}</p>
             </div>
           </div>
-          <div className="h-px bg-gray-100 mb-4" />
-          <p className={`text-[13px] leading-relaxed ${!d.argumen_terbanding ? "text-gray-400 italic" : "text-gray-600"}`} style={{ fontFamily: "var(--font-montserrat)" }}>
+          <div className="h-px bg-emerald-100 mb-4" />
+          <p className={`text-[14px] leading-relaxed ${!d.argumen_terbanding ? "text-gray-400 italic" : "text-gray-600"}`} style={{ fontFamily: "var(--font-montserrat)" }}>
             {display(d.argumen_terbanding)}
           </p>
         </div>
@@ -565,7 +579,7 @@ function PertimbanganTab({ d }: { d: PutusanRow }) {
         </p>
       </div>
       <p
-        className={`text-[13px] leading-relaxed ${shown === "-" ? "text-gray-400 italic" : "text-gray-700"}`}
+        className={`text-[14px] leading-relaxed ${shown === "-" ? "text-gray-400 italic" : "text-gray-700"}`}
         style={{ fontFamily: "var(--font-montserrat)" }}
       >
         {shown}
@@ -666,7 +680,7 @@ export default function PutusanDetailPage() {
   const labels = getPartyLabels(Boolean(data?.nomor_putusan_pk));
 
   return (
-    <div className="min-h-dvh bg-[var(--pajak-light)]">
+    <div className="min-h-dvh bg-(--pajak-light)">
       {showPdf && data?.nama_file && (
         <PdfModal namaFile={data.nama_file} onClose={() => setShowPdf(false)} />
       )}
@@ -722,9 +736,9 @@ export default function PutusanDetailPage() {
         {data && statusConfig && !loading && (
           <>
             {/* Header card */}
-            <div className="bg-white rounded-[32px] border border-gray-100 shadow-sm p-8 mb-6">
+            <div className="bg-white rounded-4xl border border-gray-100 shadow-sm p-8 mb-6">
               <div className="flex items-start justify-between gap-6 flex-wrap mb-5">
-                <div className="min-w-0 max-w-[880px]">
+                <div className="min-w-0 max-w-220">
                   <p
                     className="text-[11px] font-bold uppercase tracking-widest text-gray-400 mb-1"
                     style={{ fontFamily: "var(--font-montserrat)" }}
@@ -733,7 +747,7 @@ export default function PutusanDetailPage() {
                   </p>
                   <div className="flex items-center gap-3 flex-wrap mt-1">
                     <h1
-                      className="text-[#0C4E8C] leading-tight break-words"
+                      className="text-[#0C4E8C] leading-tight wrap-break-word"
                       style={{ fontFamily: "var(--font-coolvetica)", fontSize: "clamp(1.55rem, 3vw, 2.25rem)" }}
                     >
                       {nomorDisplay}
@@ -776,7 +790,7 @@ export default function PutusanDetailPage() {
                   { label: "Tanggal Putusan", value: formatDate(data.tanggal_putusan) },
                   { label: "Negara Lawan", value: display(data.negara_lawan_transaksi) },
                 ].map((m) => (
-                  <div key={m.label} className="rounded-2xl bg-gray-50/80 border border-gray-100 px-4 py-4">
+                  <div key={m.label} className="rounded-2xl bg-gray-100 border border-gray-200 px-4 py-4">
                     <p
                       className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-1.5"
                       style={{ fontFamily: "var(--font-montserrat)" }}
@@ -784,7 +798,7 @@ export default function PutusanDetailPage() {
                       {m.label}
                     </p>
                     <p
-                      className={`text-[13px] font-semibold leading-relaxed break-words ${m.value === "-" ? "text-gray-400 italic" : "text-gray-800"}`}
+                      className={`text-[13px] font-semibold leading-relaxed wrap-break-word ${m.value === "-" ? "text-gray-400 italic" : "text-gray-800"}`}
                       style={{ fontFamily: "var(--font-montserrat)" }}
                     >
                       {m.value}
@@ -799,62 +813,57 @@ export default function PutusanDetailPage() {
               <div className={`grid gap-3 ${data.negara_lawan_transaksi ? "grid-cols-2 sm:grid-cols-3 xl:grid-cols-6" : "grid-cols-2 sm:grid-cols-3 xl:grid-cols-5"}`}>
                 <InfoPill icon={<Coins size={14} />} label="Jenis Pajak" value={display(data.jenis_pajak)} color="#0C81E4" />
                 <InfoPill icon={<BookOpen size={14} />} label="Upaya Hukum" value={display(data.upaya_hukum)} color="#11C4D4" />
-                <InfoPill icon={<Landmark size={14} />} label="Pengadilan" value={display(data.pengadilan)} color="#4FE7AF" />
-                <InfoPill icon={<Scale size={14} />} label="Nilai Sengketa" value={formatCurrency(data.nilai_sengketa)} color="#F59E0B" />
-                <InfoPill icon={<Calendar size={14} />} label="Tanggal Putusan" value={formatDate(data.tanggal_putusan)} color="#8B5CF6" />
+                <InfoPill icon={<Landmark size={14} />} label="Pengadilan" value={display(data.pengadilan)} color="#059669" />
+                <InfoPill icon={<Scale size={14} />} label="Nilai Sengketa" value={formatCurrency(data.nilai_sengketa)} color="#DC2626" />
+                <InfoPill icon={<Calendar size={14} />} label="Tanggal Putusan" value={formatDate(data.tanggal_putusan)} color="#7C3AED" />
                 {data.negara_lawan_transaksi && (
-                  <InfoPill icon={<Globe size={14} />} label="Negara Lawan" value={display(data.negara_lawan_transaksi)} color="#EC4899" />
+                  <InfoPill icon={<Globe size={14} />} label="Negara Lawan" value={display(data.negara_lawan_transaksi)} color="#BE185D" />
                 )}
               </div>
+
               {Array.isArray(data.jenis_sengketa) && data.jenis_sengketa.length > 0 && (
                 <div className="mt-3 flex flex-wrap gap-2 items-center">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mr-1">Jenis Sengketa</span>
-                  {data.jenis_sengketa.map((s) => (
-                    <span
-                      key={s}
-                      className="px-3 py-1 rounded-full text-[11px] font-semibold border"
-                      style={{ background: '#7C3AED0d', borderColor: '#7C3AED30', color: '#7C3AED' }}
-                    >
-                      {s}
-                    </span>
-                  ))}
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mr-1" style={{ fontFamily: "var(--font-montserrat)" }}>
+                    Jenis Sengketa
+                  </span>
+                  {data.jenis_sengketa.map((s) => {
+                    const c = getSengketaColor(s);
+                    return (
+                      <span
+                        key={s}
+                        className="px-3 py-1 rounded-full text-[11px] font-semibold border"
+                        style={{ background: c.bg, borderColor: c.border, color: c.text, fontFamily: "var(--font-montserrat)" }}
+                      >
+                        {s}
+                      </span>
+                    );
+                  })}
                 </div>
               )}
             </div>
 
             {/* Tabs card */}
-            <div className="bg-white rounded-[32px] border border-gray-100 shadow-sm overflow-hidden">
+            <div className="bg-white rounded-4xl border border-gray-100 shadow-sm overflow-hidden">
               <div className="flex border-b border-gray-100 px-8 overflow-x-auto">
                 {TABS.map((tab) => {
                   const isActive = activeTab === tab.key;
-
                   return (
                     <button
                       key={tab.key}
                       onClick={() => setActiveTab(tab.key)}
-                      className="
-                        group relative shrink-0 pb-4 pt-5 px-1 mr-8
-                        text-sm font-semibold whitespace-nowrap
-                        transition-all duration-200
-                        hover:text-[#0C81E4]
-                      "
+                      className="group relative shrink-0 pb-4 pt-5 px-1 mr-8 text-sm font-semibold whitespace-nowrap transition-all duration-200 hover:text-[#0C81E4]"
                       style={{
                         color: isActive ? "#0C81E4" : "#9ca3af",
                         fontFamily: "var(--font-montserrat)",
                       }}
                     >
                       {tab.label}
-
                       <span
-                        className={`
-                          absolute bottom-0 left-0 right-0 h-0.5 rounded-full
-                          transition-all duration-300 origin-center
-                          ${
-                            isActive
-                              ? "opacity-100 scale-x-100"
-                              : "opacity-0 scale-x-0 group-hover:opacity-100 group-hover:scale-x-100"
-                          }
-                        `}
+                        className={`absolute bottom-0 left-0 right-0 h-0.5 rounded-full transition-all duration-300 origin-center ${
+                          isActive
+                            ? "opacity-100 scale-x-100"
+                            : "opacity-0 scale-x-0 group-hover:opacity-100 group-hover:scale-x-100"
+                        }`}
                         style={{ backgroundColor: "#0C81E4" }}
                       />
                     </button>
