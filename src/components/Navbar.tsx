@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
 
 const NAV_LINKS = [
-  { href: '/',     label: 'Dashboard' },
+  { href: '/dashboard', label: 'Dashboard' },
   { href: '/app',  label: 'App' },
   { href: '/about',label: 'About' },
 ];
@@ -16,12 +16,12 @@ const Navbar = () => {
   const { data: session } = useSession();
 
   const isActive = (href: string) =>
-    href === '/' ? pathname === '/' : pathname.startsWith(href);
+    href === '/dashboard' ? pathname === '/dashboard' : pathname.startsWith(href);
 
   return (
     <nav className="bg-(--pajak-base) px-20 py-4 grid grid-cols-3 items-center shadow-md">
       <div className="flex items-center justify-self-start">
-        <Link href="/">
+        <Link href="/dashboard">
           <Image
             src="/Logo.svg"
             alt="Sistem Informasi Analisis Putusan Pajak"

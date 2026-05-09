@@ -43,7 +43,7 @@ export default function LoginPage() {
         localStorage.removeItem("remember-me");
         sessionStorage.setItem("session-keep-alive", "1");
       }
-      router.push("/");
+      router.push("/dashboard");
       router.refresh();
     }
   }

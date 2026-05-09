@@ -472,7 +472,7 @@ export default function AboutPage() {
           </p>
           <div className="flex flex-wrap gap-4 justify-center">
             <Link
-              href="/"
+              href="/dashboard"
               className="group px-8 py-3.5 bg-[var(--pajak-primary)] hover:bg-[#0a6bc4] text-white font-semibold rounded-xl transition-all duration-200 text-sm shadow-lg shadow-[var(--pajak-primary)]/30 hover:shadow-xl hover:shadow-[var(--pajak-primary)]/40 hover:-translate-y-0.5 inline-flex items-center gap-2"
             >
               Lihat Dashboard
