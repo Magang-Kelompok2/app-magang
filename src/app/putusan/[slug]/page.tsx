@@ -689,7 +689,7 @@ export default function PutusanDetailPage() {
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 mb-6">
           <button
-            onClick={() => router.push('/')}
+            onClick={() => router.push('/dashboard')}
             className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-[#0C81E4] transition-colors font-medium"
             style={{ fontFamily: "var(--font-montserrat)" }}
           >
@@ -882,7 +882,7 @@ export default function PutusanDetailPage() {
             {/* Back button */}
             <div className="flex justify-center mt-6 mb-2">
               <button
-                onClick={() => router.push('/')}
+                onClick={() => router.push('/dashboard')}
                 className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-5 py-2.5 text-sm font-medium text-gray-600 hover:border-[#0C81E4] hover:text-[#0C81E4] transition-all shadow-sm"
                 style={{ fontFamily: "var(--font-montserrat)" }}
               >

@@ -42,14 +42,20 @@ export const authOptions: NextAuthOptions = {
       },
     }),
   ],
-  session: { strategy: "jwt" },
+  session: {
+    strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60, // 30 hari (untuk "Ingat Aku")
+  },
   pages: { signIn: "/login" },
   callbacks: {
     jwt({ token, user }) {
       if (user) {
         token.id = user.id;
-        // Simpan preferensi remember me di token agar bisa dibaca SessionGuard
         token.rememberMe = (user as { rememberMe?: boolean }).rememberMe ?? false;
+        // Tanpa "Ingat Aku": session expired dalam 8 jam
+        if (!token.rememberMe) {
+          token.exp = Math.floor(Date.now() / 1000) + 8 * 60 * 60;
+        }
       }
       return token;
     },
