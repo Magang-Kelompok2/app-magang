@@ -16,8 +16,8 @@ from datetime import datetime
 # DB_PORT = os.getenv("DB_PORT")
 
 # 1. Inisialisasi Model Embedding Gratis (Lokal)
-print("Sedang memuat model MiniLM...")
-model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
+print("Sedang memuat model BGE...")
+model = SentenceTransformer('BAAI/bge-m3')
 
 # 2. Koneksi ke Database (Sesuaikan dengan .env kamu)
 conn = psycopg2.connect(
