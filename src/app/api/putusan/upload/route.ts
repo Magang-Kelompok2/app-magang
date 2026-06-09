@@ -38,7 +38,6 @@ function normalizeDate(value: string | null): string | null {
   };
 
   const match = raw.toLowerCase().match(/(\d{1,2})\s+([a-z]+)\s+(\d{4})/i);
-
   if (!match) return null;
 
   const day = match[1].padStart(2, "0");
@@ -90,41 +89,41 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const inserted = await withTransaction(async (client) => {
       const insertResult = await client.query(
         `
-    INSERT INTO putusan_pajak (
-      nomor_putusan_pk,
-      nomor_putusan_pp,
-      tahun_putusan,
-      tanggal_putusan,
-      upaya_hukum,
-      pengadilan,
-      pemohon,
-      termohon,
-      jenis_pajak,
-      tahun_pajak,
-      objek_sengketa,
-      preview_sengketa,
-      pos_koreksi,
-      nilai_koreksi,
-      dasar_hukum_fiskus,
-      argumen_pemohon,
-      argumen_terbanding,
-      amar_putusan,
-      alat_bukti,
-      pertimbangan_hakim,
-      alasan_keputusan,
-      nilai_sengketa,
-      nama_file,
-      hakim_ketua,
-      hakim_anggota,
-      jenis_sengketa
-    )
-    VALUES (
-      $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-      $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
-      $21, $22, $23, $24, $25, $26
-    )
-    RETURNING *
-    `,
+        INSERT INTO putusan_pajak (
+          nomor_putusan_pk,
+          nomor_putusan_pp,
+          tahun_putusan,
+          tanggal_putusan,
+          upaya_hukum,
+          pengadilan,
+          pemohon,
+          termohon,
+          jenis_pajak,
+          tahun_pajak,
+          objek_sengketa,
+          preview_sengketa,
+          pos_koreksi,
+          nilai_koreksi,
+          dasar_hukum_fiskus,
+          argumen_pemohon,
+          argumen_terbanding,
+          amar_putusan,
+          alat_bukti,
+          pertimbangan_hakim,
+          alasan_keputusan,
+          nilai_sengketa,
+          nama_file,
+          hakim_ketua,
+          hakim_anggota,
+          jenis_sengketa
+        )
+        VALUES (
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+          $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
+          $21, $22, $23, $24, $25, $26::text[]
+        )
+        RETURNING *
+        `,
         [
           extracted.nomor_putusan_pk,
           extracted.nomor_putusan_pp,
@@ -151,7 +150,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           safeFileName,
           extracted.hakim_ketua,
           extracted.hakim_anggota,
-          extracted.jenis_sengketa,
+          extracted.jenis_sengketa ? [extracted.jenis_sengketa] : null,
         ],
       );
 
