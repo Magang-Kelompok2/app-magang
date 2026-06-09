@@ -45,6 +45,24 @@ const MODELS_TO_TRY = [
   "gemini-flash-latest",
 ];
 
+const DAFTAR_SENGKETA = [
+  "Sengketa Kepabeanan",
+  "Koreksi PPN",
+  "Koreksi PPh Badan",
+  "Sengketa Prosedur & Formal",
+  "Klasifikasi Objek Pajak",
+  "Sengketa Dokumen & Administrasi",
+  "Sanksi Administrasi",
+  "PPh Pemotongan/Pemungutan",
+  "BUT & Tax Treaty",
+  "Transfer Pricing",
+  "Saat Terutang & Pengakuan Penghasilan",
+  "NJOP / PBB",
+  "Restitusi & Imbalan Bunga",
+  "Kewangan Pajak",
+  "Lainnya",
+] as const;
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -64,27 +82,114 @@ function normalizeAmarPutusan(value: string | null): string {
 
   const normalized = value.trim().toLowerCase();
 
-  if (normalized.includes("seluruh")) {
-    return "Mengabulkan Seluruhnya";
-  }
-
-  if (normalized.includes("sebagian")) {
-    return "Mengabulkan Sebagian";
-  }
-
-  if (normalized.includes("batal")) {
-    return "Membatalkan";
-  }
-
+  if (normalized.includes("seluruh")) return "Mengabulkan Seluruhnya";
+  if (normalized.includes("sebagian")) return "Mengabulkan Sebagian";
+  if (normalized.includes("batal")) return "Membatalkan";
   if (normalized.includes("tidak") && normalized.includes("diterima")) {
     return "Tidak Dapat Diterima";
   }
-
   if (normalized.includes("tolak") || normalized.includes("menolak")) {
     return "Menolak";
   }
 
   return "Lain-lain";
+}
+
+function normalizeJenisSengketa(value: string | null): string {
+  if (!value) return "Lainnya";
+
+  const raw = value.trim();
+
+  const exactMatch = DAFTAR_SENGKETA.find(
+    (item) => item.toLowerCase() === raw.toLowerCase(),
+  );
+
+  if (exactMatch) return exactMatch;
+
+  const lower = raw.toLowerCase();
+
+  if (
+    lower.includes("kepabeanan") ||
+    lower.includes("bea cukai") ||
+    lower.includes("bea masuk")
+  ) {
+    return "Sengketa Kepabeanan";
+  }
+
+  if (lower.includes("transfer pricing") || lower.includes("harga transfer")) {
+    return "Transfer Pricing";
+  }
+
+  if (lower.includes("ppn")) {
+    return "Koreksi PPN";
+  }
+
+  if (lower.includes("pph badan")) {
+    return "Koreksi PPh Badan";
+  }
+
+  if (
+    lower.includes("pemotongan") ||
+    lower.includes("pemungutan") ||
+    lower.includes("pph 21") ||
+    lower.includes("pph 22") ||
+    lower.includes("pph 23") ||
+    lower.includes("pph 26")
+  ) {
+    return "PPh Pemotongan/Pemungutan";
+  }
+
+  if (
+    lower.includes("but") ||
+    lower.includes("bentuk usaha tetap") ||
+    lower.includes("tax treaty") ||
+    lower.includes("p3b")
+  ) {
+    return "BUT & Tax Treaty";
+  }
+
+  if (
+    lower.includes("dokumen") ||
+    lower.includes("administrasi") ||
+    lower.includes("faktur") ||
+    lower.includes("bukti")
+  ) {
+    return "Sengketa Dokumen & Administrasi";
+  }
+
+  if (
+    lower.includes("prosedur") ||
+    lower.includes("formal") ||
+    lower.includes("keberatan") ||
+    lower.includes("gugatan")
+  ) {
+    return "Sengketa Prosedur & Formal";
+  }
+
+  if (lower.includes("sanksi")) {
+    return "Sanksi Administrasi";
+  }
+
+  if (lower.includes("njop") || lower.includes("pbb")) {
+    return "NJOP / PBB";
+  }
+
+  if (lower.includes("restitusi") || lower.includes("imbalan bunga")) {
+    return "Restitusi & Imbalan Bunga";
+  }
+
+  if (
+    lower.includes("saat terutang") ||
+    lower.includes("pengakuan penghasilan")
+  ) {
+    return "Saat Terutang & Pengakuan Penghasilan";
+  }
+
+  if (lower.includes("objek pajak") || lower.includes("klasifikasi")) {
+    return "Klasifikasi Objek Pajak";
+  }
+
+  return "Lainnya";
 }
 
 function buildPrompt(textContent: string): string {
@@ -99,12 +204,10 @@ ATURAN:
 - "pertimbangan_hakim": ringkas 3-5 kalimat.
 - "alasan_keputusan": 1-2 kalimat inti alasan hakim.
 - "jenis_sengketa":
-  Klasifikasikan berdasarkan isi perkara.
-  Gunakan salah satu:
-  "Pajak", "Bea Cukai", "Perdata", "Tata Usaha Negara", "Pidana", "Kepailitan", "Ketenagakerjaan", "Lainnya".
-  Jika terkait PPN, PPh, SKPKB, SKK, keberatan pajak, banding pajak, isi "Pajak".
-  Jika terkait bea masuk, nilai pabean, PIB, tarif, klasifikasi barang, isi "Bea Cukai".
-  Jika terkait wanprestasi, kontrak, hutang piutang, PMH, isi "Perdata".
+  Tentukan berdasarkan gabungan informasi dari "objek_sengketa", "pos_koreksi", dan "pertimbangan_hakim".
+  WAJIB pilih hanya SATU kategori dari daftar resmi berikut, dengan penulisan persis:
+  ${JSON.stringify(DAFTAR_SENGKETA, null, 2)}
+  Jika tidak cocok, isi "Lainnya".
 - "amar_putusan":
   Cari bagian setelah kata kunci:
   "MENGADILI", "M E N G A D I L I", "MEMUTUSKAN", atau "Memutuskan".
@@ -191,9 +294,7 @@ export async function extractPutusanInfo(
           `[Gemini] Extracting ${fileName} | model=${modelName} | attempt=${attempt}`,
         );
 
-        const model = genAI.getGenerativeModel({
-          model: modelName,
-        });
+        const model = genAI.getGenerativeModel({ model: modelName });
 
         const result = await model.generateContent({
           contents: [
@@ -210,8 +311,9 @@ export async function extractPutusanInfo(
         const responseText = result.response.text();
         const extracted = safeJsonParse(responseText);
 
-        extracted.amar_putusan = normalizeAmarPutusan(
-          extracted.amar_putusan,
+        extracted.amar_putusan = normalizeAmarPutusan(extracted.amar_putusan);
+        extracted.jenis_sengketa = normalizeJenisSengketa(
+          extracted.jenis_sengketa,
         );
         extracted.nama_file = fileName;
 
