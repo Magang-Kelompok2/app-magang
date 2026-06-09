@@ -20,9 +20,11 @@ import {
   Search,
   Download,
   ChevronLeft,
+  Trash2,
 } from "lucide-react";
 
 interface PutusanRow {
+  id?: number;
   nomor_putusan_pp: string;
   nomor_putusan_pk?: string;
   amar_putusan: string;
@@ -55,16 +57,20 @@ interface PutusanRow {
 
 type TabKey = "ringkasan" | "argumen" | "pertimbangan" | "amar";
 
-
 // ── Safe display helpers ──────────────────────────────────────────────────────
 
-function display(value: string | number | undefined | null, fallback = "-"): string {
+function display(
+  value: string | number | undefined | null,
+  fallback = "-",
+): string {
   if (value == null) return fallback;
   const s = String(value).trim();
   return s.length > 0 ? s : fallback;
 }
 
-function getDisplayNomor(row: Pick<PutusanRow, "nomor_putusan_pk" | "nomor_putusan_pp">) {
+function getDisplayNomor(
+  row: Pick<PutusanRow, "nomor_putusan_pk" | "nomor_putusan_pp">,
+) {
   return display(row.nomor_putusan_pk ?? row.nomor_putusan_pp);
 }
 
@@ -85,25 +91,62 @@ function getPartyLabels(hasPk: boolean) {
 function getStatusConfig(amar: string) {
   const l = (amar ?? "").toLowerCase();
 
-  if (l.includes("seluruh") || (l.includes("kabul") && !l.includes("sebagian"))) {
-    return { color: "#059669", bg: "rgba(5,150,105,0.10)", border: "rgba(5,150,105,0.35)", badgeBg: "rgba(5,150,105,0.14)" };
+  if (
+    l.includes("seluruh") ||
+    (l.includes("kabul") && !l.includes("sebagian"))
+  ) {
+    return {
+      color: "#059669",
+      bg: "rgba(5,150,105,0.10)",
+      border: "rgba(5,150,105,0.35)",
+      badgeBg: "rgba(5,150,105,0.14)",
+    };
   }
   if (l.includes("sebagian")) {
-    return { color: "#D97706", bg: "rgba(217,119,6,0.10)", border: "rgba(217,119,6,0.35)", badgeBg: "rgba(217,119,6,0.14)" };
+    return {
+      color: "#D97706",
+      bg: "rgba(217,119,6,0.10)",
+      border: "rgba(217,119,6,0.35)",
+      badgeBg: "rgba(217,119,6,0.14)",
+    };
   }
   if (l.includes("tolak") || l.includes("menolak")) {
-    return { color: "#DC2626", bg: "rgba(220,38,38,0.10)", border: "rgba(220,38,38,0.35)", badgeBg: "rgba(220,38,38,0.14)" };
+    return {
+      color: "#DC2626",
+      bg: "rgba(220,38,38,0.10)",
+      border: "rgba(220,38,38,0.35)",
+      badgeBg: "rgba(220,38,38,0.14)",
+    };
   }
   if (l.includes("tidak") || l.includes("diterima")) {
-    return { color: "#64748B", bg: "rgba(100,116,139,0.10)", border: "rgba(100,116,139,0.35)", badgeBg: "rgba(100,116,139,0.14)" };
+    return {
+      color: "#64748B",
+      bg: "rgba(100,116,139,0.10)",
+      border: "rgba(100,116,139,0.35)",
+      badgeBg: "rgba(100,116,139,0.14)",
+    };
   }
   if (l.includes("membatalkan") || l.includes("batal")) {
-    return { color: "#0E7490", bg: "rgba(14,116,144,0.10)", border: "rgba(14,116,144,0.35)", badgeBg: "rgba(14,116,144,0.14)" };
+    return {
+      color: "#0E7490",
+      bg: "rgba(14,116,144,0.10)",
+      border: "rgba(14,116,144,0.35)",
+      badgeBg: "rgba(14,116,144,0.14)",
+    };
   }
-  return { color: "#B45309", bg: "rgba(180,83,9,0.10)", border: "rgba(180,83,9,0.35)", badgeBg: "rgba(180,83,9,0.14)" };
+  return {
+    color: "#B45309",
+    bg: "rgba(180,83,9,0.10)",
+    border: "rgba(180,83,9,0.35)",
+    badgeBg: "rgba(180,83,9,0.14)",
+  };
 }
 
-function getSengketaColor(s: string): { bg: string; border: string; text: string } {
+function getSengketaColor(s: string): {
+  bg: string;
+  border: string;
+  text: string;
+} {
   const lower = s.toLowerCase();
   if (lower.includes("transfer pricing"))
     return { bg: "#EFF6FF", border: "#93C5FD", text: "#1D4ED8" };
@@ -111,7 +154,10 @@ function getSengketaColor(s: string): { bg: string; border: string; text: string
     return { bg: "#FFF7ED", border: "#FDBA74", text: "#C2410C" };
   if (lower.includes("ppn"))
     return { bg: "#F0FDF4", border: "#6EE7B7", text: "#065F46" };
-  if (lower.includes("pph badan") || (lower.includes("pph") && lower.includes("badan")))
+  if (
+    lower.includes("pph badan") ||
+    (lower.includes("pph") && lower.includes("badan"))
+  )
     return { bg: "#FEFCE8", border: "#FDE047", text: "#854D0E" };
   if (lower.includes("pph pasal"))
     return { bg: "#F5F3FF", border: "#C4B5FD", text: "#5B21B6" };
@@ -131,12 +177,19 @@ function parseHakim(raw?: string | string[]): string[] {
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed)) return parsed.filter(Boolean);
   } catch {}
-  return raw.split(",").map((s) => s.trim()).filter(Boolean);
+  return raw
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
 }
 
 function formatCurrency(val?: string | number): string {
-  if (val == null || val === "" || String(val).trim().toLowerCase() === "null") return "-";
-  const num = typeof val === "number" ? val : parseInt(String(val).replace(/\D/g, ""), 10);
+  if (val == null || val === "" || String(val).trim().toLowerCase() === "null")
+    return "-";
+  const num =
+    typeof val === "number"
+      ? val
+      : parseInt(String(val).replace(/\D/g, ""), 10);
   if (isNaN(num)) return String(val);
   return "Rp " + num.toLocaleString("id-ID");
 }
@@ -215,7 +268,10 @@ function SectionCard({
   return (
     <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
       <div className="flex items-center gap-2 mb-3">
-        <div className="w-1 h-4 rounded-full" style={{ backgroundColor: accent }} />
+        <div
+          className="w-1 h-4 rounded-full"
+          style={{ backgroundColor: accent }}
+        />
         <p
           className="text-[10px] font-bold text-gray-400 uppercase tracking-widest"
           style={{ fontFamily: "var(--font-montserrat)" }}
@@ -276,11 +332,20 @@ function PartyCard({
 
 // ── PDF Modal ─────────────────────────────────────────────────────────────────
 
-function PdfModal({ namaFile, onClose }: { namaFile: string; onClose: () => void }) {
+function PdfModal({
+  namaFile,
+  onClose,
+}: {
+  namaFile: string;
+  onClose: () => void;
+}) {
   const blobUrlRef = useRef<string | null>(null);
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [matchInfo, setMatchInfo] = useState<{ current: number; total: number } | null>(null);
+  const [matchInfo, setMatchInfo] = useState<{
+    current: number;
+    total: number;
+  } | null>(null);
   const [viewerReady, setViewerReady] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -292,7 +357,10 @@ function PdfModal({ namaFile, onClose }: { namaFile: string; onClose: () => void
   useEffect(() => {
     let cancelled = false;
     fetch(`/api/pdf/${encodeURIComponent(namaFile)}`)
-      .then((res) => { if (!res.ok) throw new Error(`HTTP ${res.status}`); return res.blob(); })
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.blob();
+      })
       .then((blob) => {
         if (cancelled) return;
         const url = URL.createObjectURL(blob);
@@ -302,12 +370,21 @@ function PdfModal({ namaFile, onClose }: { namaFile: string; onClose: () => void
       .catch((err) => console.error("Failed to load PDF:", err));
     return () => {
       cancelled = true;
-      if (blobUrlRef.current) { URL.revokeObjectURL(blobUrlRef.current); blobUrlRef.current = null; }
+      if (blobUrlRef.current) {
+        URL.revokeObjectURL(blobUrlRef.current);
+        blobUrlRef.current = null;
+      }
     };
   }, [namaFile]);
 
   useEffect(() => {
-    if (!blobUrl || viewerSetup.current || !containerRef.current || !viewerDivRef.current) return;
+    if (
+      !blobUrl ||
+      viewerSetup.current ||
+      !containerRef.current ||
+      !viewerDivRef.current
+    )
+      return;
     viewerSetup.current = true;
 
     (async () => {
@@ -322,7 +399,10 @@ function PdfModal({ namaFile, onClose }: { namaFile: string; onClose: () => void
         const eventBus = new pdfjsViewer.EventBus();
         eventBusRef.current = eventBus;
         const linkService = new pdfjsViewer.PDFLinkService({ eventBus });
-        const findController = new pdfjsViewer.PDFFindController({ linkService, eventBus });
+        const findController = new pdfjsViewer.PDFFindController({
+          linkService,
+          eventBus,
+        });
 
         const pdfViewer = new pdfjsViewer.PDFViewer({
           container: containerRef.current!,
@@ -336,16 +416,25 @@ function PdfModal({ namaFile, onClose }: { namaFile: string; onClose: () => void
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         eventBus.on("updatefindmatchescount", ({ matchesCount }: any) => {
-          setMatchInfo({ current: matchesCount.current, total: matchesCount.total });
+          setMatchInfo({
+            current: matchesCount.current,
+            total: matchesCount.total,
+          });
         });
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        eventBus.on("updatefindcontrolstate", ({ state, matchesCount }: any) => {
-          if (matchesCount) {
-            setMatchInfo({ current: matchesCount.current, total: matchesCount.total });
-          } else if (state === 3) {
-            setMatchInfo({ current: 0, total: 0 });
-          }
-        });
+        eventBus.on(
+          "updatefindcontrolstate",
+          ({ state, matchesCount }: any) => {
+            if (matchesCount) {
+              setMatchInfo({
+                current: matchesCount.current,
+                total: matchesCount.total,
+              });
+            } else if (state === 3) {
+              setMatchInfo({ current: 0, total: 0 });
+            }
+          },
+        );
 
         const loadingTask = pdfjs.getDocument(blobUrl);
         const pdfDocument = await loadingTask.promise;
@@ -381,7 +470,9 @@ function PdfModal({ namaFile, onClose }: { namaFile: string; onClose: () => void
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl h-[90vh] flex flex-col overflow-hidden">
         <div className="flex items-center justify-between gap-4 px-5 py-3 border-b shrink-0">
           <div className="min-w-0 flex-1">
-            <span className="text-sm text-gray-700 truncate block max-w-[400px]">{namaFile}</span>
+            <span className="text-sm text-gray-700 truncate block max-w-[400px]">
+              {namaFile}
+            </span>
           </div>
           <div className="flex items-center gap-2">
             {blobUrl && (
@@ -405,11 +496,19 @@ function PdfModal({ namaFile, onClose }: { namaFile: string; onClose: () => void
 
         <div className="flex flex-wrap items-center gap-3 px-5 py-3 border-b bg-white shrink-0">
           <div className="relative min-w-[260px] flex-1">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <Search
+              size={14}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+            />
             <input
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); execFind("find"); } }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  execFind("find");
+                }
+              }}
               placeholder="Cari kata di PDF..."
               className="w-full rounded-xl border border-gray-200 bg-gray-50 pl-9 pr-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:border-(--pajak-primary) focus:bg-white"
             />
@@ -448,7 +547,9 @@ function PdfModal({ namaFile, onClose }: { namaFile: string; onClose: () => void
 
         <div className="flex-1 relative bg-gray-100 overflow-hidden">
           {!blobUrl && (
-            <div className="absolute inset-0 flex items-center justify-center text-gray-400">Memuat PDF...</div>
+            <div className="absolute inset-0 flex items-center justify-center text-gray-400">
+              Memuat PDF...
+            </div>
           )}
           <div ref={containerRef} className="absolute inset-0 overflow-auto">
             <div ref={viewerDivRef} className="pdfViewer" />
@@ -469,24 +570,49 @@ function RingkasanTab({ d }: { d: PutusanRow }) {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <PartyCard role={labels.primary} name={d.pemohon} color="#EF4444" icon={<User size={16} />} />
-        <PartyCard role={labels.secondary} name={pihakLawan} color="#10B981" icon={<User size={16} />} />
+        <PartyCard
+          role={labels.primary}
+          name={d.pemohon}
+          color="#EF4444"
+          icon={<User size={16} />}
+        />
+        <PartyCard
+          role={labels.secondary}
+          name={pihakLawan}
+          color="#10B981"
+          icon={<User size={16} />}
+        />
       </div>
 
       {d.preview_sengketa && (
-        <SectionCard label="Preview Sengketa" value={d.preview_sengketa} accent="#0C81E4" />
+        <SectionCard
+          label="Preview Sengketa"
+          value={d.preview_sengketa}
+          accent="#0C81E4"
+        />
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <SectionCard label="Objek Sengketa" value={d.objek_sengketa} accent="#11C4D4" />
-        <SectionCard label="Pos Koreksi" value={d.pos_koreksi} accent="#F59E0B" />
+        <SectionCard
+          label="Objek Sengketa"
+          value={d.objek_sengketa}
+          accent="#11C4D4"
+        />
+        <SectionCard
+          label="Pos Koreksi"
+          value={d.pos_koreksi}
+          accent="#F59E0B"
+        />
       </div>
 
       {(d.hakim_ketua || hakimAnggota.length > 0) && (
         <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
           <div className="flex items-center gap-2 mb-4">
             <div className="w-1 h-4 rounded-full bg-[#0C4E8C]" />
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest" style={{ fontFamily: "var(--font-montserrat)" }}>
+            <p
+              className="text-[10px] font-bold text-gray-400 uppercase tracking-widest"
+              style={{ fontFamily: "var(--font-montserrat)" }}
+            >
               Majelis Hakim
             </p>
           </div>
@@ -497,19 +623,42 @@ function RingkasanTab({ d }: { d: PutusanRow }) {
                   <User size={12} className="text-red-600" />
                 </div>
                 <div>
-                  <p className="text-[9px] uppercase text-red-600 font-bold tracking-widest" style={{ fontFamily: "var(--font-montserrat)" }}>Ketua</p>
-                  <p className="text-[12px] font-semibold text-gray-800" style={{ fontFamily: "var(--font-montserrat)" }}>{d.hakim_ketua}</p>
+                  <p
+                    className="text-[9px] uppercase text-red-600 font-bold tracking-widest"
+                    style={{ fontFamily: "var(--font-montserrat)" }}
+                  >
+                    Ketua
+                  </p>
+                  <p
+                    className="text-[12px] font-semibold text-gray-800"
+                    style={{ fontFamily: "var(--font-montserrat)" }}
+                  >
+                    {d.hakim_ketua}
+                  </p>
                 </div>
               </div>
             )}
             {hakimAnggota.map((h, i) => (
-              <div key={i} className="flex items-center gap-3 border-2 border-emerald-200 bg-emerald-50 rounded-xl px-4 py-2.5">
+              <div
+                key={i}
+                className="flex items-center gap-3 border-2 border-emerald-200 bg-emerald-50 rounded-xl px-4 py-2.5"
+              >
                 <div className="w-7 h-7 rounded-lg bg-emerald-100 flex items-center justify-center">
                   <Users size={12} className="text-emerald-700" />
                 </div>
                 <div>
-                  <p className="text-[9px] uppercase text-emerald-700 font-bold tracking-widest" style={{ fontFamily: "var(--font-montserrat)" }}>Anggota</p>
-                  <p className="text-[12px] font-semibold text-gray-800" style={{ fontFamily: "var(--font-montserrat)" }}>{h}</p>
+                  <p
+                    className="text-[9px] uppercase text-emerald-700 font-bold tracking-widest"
+                    style={{ fontFamily: "var(--font-montserrat)" }}
+                  >
+                    Anggota
+                  </p>
+                  <p
+                    className="text-[12px] font-semibold text-gray-800"
+                    style={{ fontFamily: "var(--font-montserrat)" }}
+                  >
+                    {h}
+                  </p>
                 </div>
               </div>
             ))}
@@ -533,12 +682,25 @@ function ArgumenTab({ d }: { d: PutusanRow }) {
               <User size={13} className="text-white" />
             </div>
             <div>
-              <p className="text-[9px] uppercase font-bold text-red-600 tracking-widest" style={{ fontFamily: "var(--font-montserrat)" }}>{labels.primary}</p>
-              <p className="text-[11px] font-semibold text-gray-700" style={{ fontFamily: "var(--font-montserrat)" }}>{display(d.pemohon)}</p>
+              <p
+                className="text-[9px] uppercase font-bold text-red-600 tracking-widest"
+                style={{ fontFamily: "var(--font-montserrat)" }}
+              >
+                {labels.primary}
+              </p>
+              <p
+                className="text-[11px] font-semibold text-gray-700"
+                style={{ fontFamily: "var(--font-montserrat)" }}
+              >
+                {display(d.pemohon)}
+              </p>
             </div>
           </div>
           <div className="h-px bg-red-100 mb-4" />
-          <p className={`text-[14px] leading-relaxed ${!d.argumen_pemohon ? "text-gray-400 italic" : "text-gray-600"}`} style={{ fontFamily: "var(--font-montserrat)" }}>
+          <p
+            className={`text-[14px] leading-relaxed ${!d.argumen_pemohon ? "text-gray-400 italic" : "text-gray-600"}`}
+            style={{ fontFamily: "var(--font-montserrat)" }}
+          >
             {display(d.argumen_pemohon)}
           </p>
         </div>
@@ -549,19 +711,36 @@ function ArgumenTab({ d }: { d: PutusanRow }) {
               <User size={13} className="text-white" />
             </div>
             <div>
-              <p className="text-[9px] uppercase font-bold text-emerald-700 tracking-widest" style={{ fontFamily: "var(--font-montserrat)" }}>{labels.secondary}</p>
-              <p className="text-[11px] font-semibold text-gray-700" style={{ fontFamily: "var(--font-montserrat)" }}>{display(pihakLawan)}</p>
+              <p
+                className="text-[9px] uppercase font-bold text-emerald-700 tracking-widest"
+                style={{ fontFamily: "var(--font-montserrat)" }}
+              >
+                {labels.secondary}
+              </p>
+              <p
+                className="text-[11px] font-semibold text-gray-700"
+                style={{ fontFamily: "var(--font-montserrat)" }}
+              >
+                {display(pihakLawan)}
+              </p>
             </div>
           </div>
           <div className="h-px bg-emerald-100 mb-4" />
-          <p className={`text-[14px] leading-relaxed ${!d.argumen_terbanding ? "text-gray-400 italic" : "text-gray-600"}`} style={{ fontFamily: "var(--font-montserrat)" }}>
+          <p
+            className={`text-[14px] leading-relaxed ${!d.argumen_terbanding ? "text-gray-400 italic" : "text-gray-600"}`}
+            style={{ fontFamily: "var(--font-montserrat)" }}
+          >
             {display(d.argumen_terbanding)}
           </p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <SectionCard label="Dasar Hukum Fiskus" value={d.dasar_hukum_fiskus} accent="#8B5CF6" />
+        <SectionCard
+          label="Dasar Hukum Fiskus"
+          value={d.dasar_hukum_fiskus}
+          accent="#8B5CF6"
+        />
         <SectionCard label="Alat Bukti" value={d.alat_bukti} accent="#F59E0B" />
       </div>
     </div>
@@ -574,7 +753,10 @@ function PertimbanganTab({ d }: { d: PutusanRow }) {
     <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
       <div className="flex items-center gap-2 mb-4">
         <div className="w-1 h-4 rounded-full bg-[#0C81E4]" />
-        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest" style={{ fontFamily: "var(--font-montserrat)" }}>
+        <p
+          className="text-[10px] font-bold text-gray-400 uppercase tracking-widest"
+          style={{ fontFamily: "var(--font-montserrat)" }}
+        >
           Pertimbangan Majelis Hakim
         </p>
       </div>
@@ -602,7 +784,10 @@ function AmarTab({
     <div className="space-y-4">
       <div
         className="rounded-2xl border-2 p-6 flex items-center gap-5"
-        style={{ background: statusConfig.bg, borderColor: statusConfig.border }}
+        style={{
+          background: statusConfig.bg,
+          borderColor: statusConfig.border,
+        }}
       >
         <div
           className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0"
@@ -613,28 +798,46 @@ function AmarTab({
         <div>
           <p
             className="text-[10px] font-bold uppercase tracking-widest mb-1"
-            style={{ color: statusConfig.color + "99", fontFamily: "var(--font-montserrat)" }}
+            style={{
+              color: statusConfig.color + "99",
+              fontFamily: "var(--font-montserrat)",
+            }}
           >
             Status Putusan Akhir
           </p>
           <p
             className="text-3xl font-extrabold leading-none tracking-wide"
-            style={{ color: statusConfig.color, fontFamily: "var(--font-montserrat)" }}
+            style={{
+              color: statusConfig.color,
+              fontFamily: "var(--font-montserrat)",
+            }}
           >
             {(d.amar_putusan ?? "").toUpperCase()}
           </p>
           <p
             className="text-xs mt-1.5"
-            style={{ color: statusConfig.color + "aa", fontFamily: "var(--font-montserrat)" }}
+            style={{
+              color: statusConfig.color + "aa",
+              fontFamily: "var(--font-montserrat)",
+            }}
           >
-            {labels.primary} {display(d.pemohon)} {(d.amar_putusan ?? "").toLowerCase()}.
+            {labels.primary} {display(d.pemohon)}{" "}
+            {(d.amar_putusan ?? "").toLowerCase()}.
           </p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <SectionCard label="Alasan Putusan" value={alasanPutusan} accent={statusConfig.color} />
-        <SectionCard label="Amar Putusan" value={d.amar_detail} accent={statusConfig.color} />
+        <SectionCard
+          label="Alasan Putusan"
+          value={alasanPutusan}
+          accent={statusConfig.color}
+        />
+        <SectionCard
+          label="Amar Putusan"
+          value={d.amar_detail}
+          accent={statusConfig.color}
+        />
       </div>
     </div>
   );
@@ -661,6 +864,7 @@ export default function PutusanDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabKey>("ringkasan");
   const [showPdf, setShowPdf] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (!slug) return;
@@ -673,6 +877,45 @@ export default function PutusanDetailPage() {
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, [slug]);
+
+  const handleDeletePutusan = async () => {
+    if (!data) return;
+
+    const nomor = getDisplayNomor(data);
+    const confirmed = window.confirm(
+      `Yakin ingin menghapus putusan ${nomor}? Data putusan dan PDF terkait akan dihapus.`,
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setDeleting(true);
+
+      const res = await fetch(
+        `/api/putusan/delete?id=${encodeURIComponent(String((data as any).id ?? slug))}`,
+        {
+          method: "DELETE",
+        },
+      );
+
+      const result = await res.json();
+
+      if (!res.ok) {
+        throw new Error(
+          result?.error || result?.message || "Gagal menghapus putusan",
+        );
+      }
+
+      alert("Putusan berhasil dihapus");
+      router.push("/dashboard");
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Gagal menghapus putusan";
+      alert(message);
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const statusConfig = data ? getStatusConfig(data.amar_putusan) : null;
   const nomorDisplay = data ? getDisplayNomor(data) : "-";
@@ -689,7 +932,7 @@ export default function PutusanDetailPage() {
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 mb-6">
           <button
-            onClick={() => router.push('/dashboard')}
+            onClick={() => router.push("/dashboard")}
             className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-[#0C81E4] transition-colors font-medium"
             style={{ fontFamily: "var(--font-montserrat)" }}
           >
@@ -717,7 +960,10 @@ export default function PutusanDetailPage() {
                 />
               ))}
             </div>
-            <p className="text-sm text-gray-400" style={{ fontFamily: "var(--font-montserrat)" }}>
+            <p
+              className="text-sm text-gray-400"
+              style={{ fontFamily: "var(--font-montserrat)" }}
+            >
               Memuat putusan...
             </p>
           </div>
@@ -726,10 +972,18 @@ export default function PutusanDetailPage() {
         {/* Error */}
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-2xl p-10 text-center">
-            <p className="text-red-600 text-xl mb-1" style={{ fontFamily: "var(--font-coolvetica)" }}>
+            <p
+              className="text-red-600 text-xl mb-1"
+              style={{ fontFamily: "var(--font-coolvetica)" }}
+            >
               Putusan tidak ditemukan
             </p>
-            <p className="text-red-400 text-sm" style={{ fontFamily: "var(--font-montserrat)" }}>{error}</p>
+            <p
+              className="text-red-400 text-sm"
+              style={{ fontFamily: "var(--font-montserrat)" }}
+            >
+              {error}
+            </p>
           </div>
         )}
 
@@ -748,7 +1002,10 @@ export default function PutusanDetailPage() {
                   <div className="flex items-center gap-3 flex-wrap mt-1">
                     <h1
                       className="text-[#0C4E8C] leading-tight wrap-break-word"
-                      style={{ fontFamily: "var(--font-coolvetica)", fontSize: "clamp(1.55rem, 3vw, 2.25rem)" }}
+                      style={{
+                        fontFamily: "var(--font-coolvetica)",
+                        fontSize: "clamp(1.55rem, 3vw, 2.25rem)",
+                      }}
                     >
                       {nomorDisplay}
                     </h1>
@@ -771,10 +1028,24 @@ export default function PutusanDetailPage() {
                     onClick={() => setShowPdf(true)}
                     disabled={!data.nama_file}
                     className="flex items-center gap-1.5 text-sm font-semibold px-4 py-2.5 rounded-xl transition-all shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
-                    style={{ backgroundColor: "#0C81E4", color: "white", fontFamily: "var(--font-montserrat)" }}
+                    style={{
+                      backgroundColor: "#0C81E4",
+                      color: "white",
+                      fontFamily: "var(--font-montserrat)",
+                    }}
                   >
                     <FileText size={12} />
                     Lihat PDF
+                  </button>
+
+                  <button
+                    onClick={handleDeletePutusan}
+                    disabled={deleting}
+                    className="flex items-center gap-1.5 text-sm font-semibold px-4 py-2.5 rounded-xl transition-all shadow-sm bg-red-500 text-white hover:bg-red-600 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{ fontFamily: "var(--font-montserrat)" }}
+                  >
+                    <Trash2 size={12} />
+                    {deleting ? "Menghapus..." : "Delete Putusan"}
                   </button>
                 </div>
               </div>
@@ -787,10 +1058,19 @@ export default function PutusanDetailPage() {
                   { label: labels.primary, value: display(data.pemohon) },
                   { label: labels.secondary, value: display(pihakLawan) },
                   { label: "Tahun Pajak", value: display(data.tahun_pajak) },
-                  { label: "Tanggal Putusan", value: formatDate(data.tanggal_putusan) },
-                  { label: "Negara Lawan", value: display(data.negara_lawan_transaksi) },
+                  {
+                    label: "Tanggal Putusan",
+                    value: formatDate(data.tanggal_putusan),
+                  },
+                  {
+                    label: "Negara Lawan",
+                    value: display(data.negara_lawan_transaksi),
+                  },
                 ].map((m) => (
-                  <div key={m.label} className="rounded-2xl bg-gray-100 border border-gray-200 px-4 py-4">
+                  <div
+                    key={m.label}
+                    className="rounded-2xl bg-gray-100 border border-gray-200 px-4 py-4"
+                  >
                     <p
                       className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-1.5"
                       style={{ fontFamily: "var(--font-montserrat)" }}
@@ -810,36 +1090,77 @@ export default function PutusanDetailPage() {
               <div className="h-px bg-gray-100 my-4" />
 
               {/* Info pills */}
-              <div className={`grid gap-3 ${data.negara_lawan_transaksi ? "grid-cols-2 sm:grid-cols-3 xl:grid-cols-6" : "grid-cols-2 sm:grid-cols-3 xl:grid-cols-5"}`}>
-                <InfoPill icon={<Coins size={14} />} label="Jenis Pajak" value={display(data.jenis_pajak)} color="#0C81E4" />
-                <InfoPill icon={<BookOpen size={14} />} label="Upaya Hukum" value={display(data.upaya_hukum)} color="#11C4D4" />
-                <InfoPill icon={<Landmark size={14} />} label="Pengadilan" value={display(data.pengadilan)} color="#059669" />
-                <InfoPill icon={<Scale size={14} />} label="Nilai Sengketa" value={formatCurrency(data.nilai_sengketa)} color="#DC2626" />
-                <InfoPill icon={<Calendar size={14} />} label="Tanggal Putusan" value={formatDate(data.tanggal_putusan)} color="#7C3AED" />
+              <div
+                className={`grid gap-3 ${data.negara_lawan_transaksi ? "grid-cols-2 sm:grid-cols-3 xl:grid-cols-6" : "grid-cols-2 sm:grid-cols-3 xl:grid-cols-5"}`}
+              >
+                <InfoPill
+                  icon={<Coins size={14} />}
+                  label="Jenis Pajak"
+                  value={display(data.jenis_pajak)}
+                  color="#0C81E4"
+                />
+                <InfoPill
+                  icon={<BookOpen size={14} />}
+                  label="Upaya Hukum"
+                  value={display(data.upaya_hukum)}
+                  color="#11C4D4"
+                />
+                <InfoPill
+                  icon={<Landmark size={14} />}
+                  label="Pengadilan"
+                  value={display(data.pengadilan)}
+                  color="#059669"
+                />
+                <InfoPill
+                  icon={<Scale size={14} />}
+                  label="Nilai Sengketa"
+                  value={formatCurrency(data.nilai_sengketa)}
+                  color="#DC2626"
+                />
+                <InfoPill
+                  icon={<Calendar size={14} />}
+                  label="Tanggal Putusan"
+                  value={formatDate(data.tanggal_putusan)}
+                  color="#7C3AED"
+                />
                 {data.negara_lawan_transaksi && (
-                  <InfoPill icon={<Globe size={14} />} label="Negara Lawan" value={display(data.negara_lawan_transaksi)} color="#BE185D" />
+                  <InfoPill
+                    icon={<Globe size={14} />}
+                    label="Negara Lawan"
+                    value={display(data.negara_lawan_transaksi)}
+                    color="#BE185D"
+                  />
                 )}
               </div>
 
-              {Array.isArray(data.jenis_sengketa) && data.jenis_sengketa.length > 0 && (
-                <div className="mt-3 flex flex-wrap gap-2 items-center">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mr-1" style={{ fontFamily: "var(--font-montserrat)" }}>
-                    Jenis Sengketa
-                  </span>
-                  {data.jenis_sengketa.map((s) => {
-                    const c = getSengketaColor(s);
-                    return (
-                      <span
-                        key={s}
-                        className="px-3 py-1 rounded-full text-[11px] font-semibold border"
-                        style={{ background: c.bg, borderColor: c.border, color: c.text, fontFamily: "var(--font-montserrat)" }}
-                      >
-                        {s}
-                      </span>
-                    );
-                  })}
-                </div>
-              )}
+              {Array.isArray(data.jenis_sengketa) &&
+                data.jenis_sengketa.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-2 items-center">
+                    <span
+                      className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mr-1"
+                      style={{ fontFamily: "var(--font-montserrat)" }}
+                    >
+                      Jenis Sengketa
+                    </span>
+                    {data.jenis_sengketa.map((s) => {
+                      const c = getSengketaColor(s);
+                      return (
+                        <span
+                          key={s}
+                          className="px-3 py-1 rounded-full text-[11px] font-semibold border"
+                          style={{
+                            background: c.bg,
+                            borderColor: c.border,
+                            color: c.text,
+                            fontFamily: "var(--font-montserrat)",
+                          }}
+                        >
+                          {s}
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
             </div>
 
             {/* Tabs card */}
@@ -875,14 +1196,16 @@ export default function PutusanDetailPage() {
                 {activeTab === "ringkasan" && <RingkasanTab d={data} />}
                 {activeTab === "argumen" && <ArgumenTab d={data} />}
                 {activeTab === "pertimbangan" && <PertimbanganTab d={data} />}
-                {activeTab === "amar" && <AmarTab d={data} statusConfig={statusConfig} />}
+                {activeTab === "amar" && (
+                  <AmarTab d={data} statusConfig={statusConfig} />
+                )}
               </div>
             </div>
 
             {/* Back button */}
             <div className="flex justify-center mt-6 mb-2">
               <button
-                onClick={() => router.push('/dashboard')}
+                onClick={() => router.push("/dashboard")}
                 className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-5 py-2.5 text-sm font-medium text-gray-600 hover:border-[#0C81E4] hover:text-[#0C81E4] transition-all shadow-sm"
                 style={{ fontFamily: "var(--font-montserrat)" }}
               >

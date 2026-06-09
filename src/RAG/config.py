@@ -10,9 +10,14 @@ from dotenv import load_dotenv
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-ENV_FILE = PROJECT_ROOT / ".env"
-load_dotenv(ENV_FILE)
 
+ENV_LOCAL_FILE = PROJECT_ROOT / ".env.local"
+ENV_FILE = PROJECT_ROOT / ".env"
+
+if ENV_LOCAL_FILE.exists():
+    load_dotenv(ENV_LOCAL_FILE)
+else:
+    load_dotenv(ENV_FILE)
 
 class ConfigurationError(RuntimeError):
     """Raised when required environment variables are missing or invalid."""
