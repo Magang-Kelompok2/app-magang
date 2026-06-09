@@ -9,11 +9,14 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "bcryptjs": "^3.0.3",
     "lucide-react": "^0.577.0",
     "minio": "^8.0.7",
     "next": "16.1.6",
     "next-auth": "^4.24.13",
+    "pdf-parse": "^1.1.1",
+    "pdfjs-dist": "^5.4.296",
     "pg": "^8.20.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
@@ -24,7 +27,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/bcryptjs": "^2.4.6",
-    "@types/node": "^20",
+    "@types/node": "^20.19.42",
     "@types/pg": "^8.20.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",

@@ -200,6 +200,9 @@ class ChatResponse(BaseModel):
     sources: list[dict]
     session_id: str
     validation: dict
+    
+class EmbeddingRequest(BaseModel):
+    text: str
 
 
 # ── Database Helper ───────────────────────────────────────────────────────────
@@ -401,6 +404,25 @@ async def health_check():
         "model": cfg.llm.model_name,
         "embedding": cfg.embedding.model_name,
     }
+    
+@app.post("/embedding")
+async def create_embedding(req: EmbeddingRequest):
+    try:
+        embedding = embedder.encode(
+            req.text,
+            normalize_embeddings=True
+        )
+
+        return {
+            "embedding": embedding.tolist(),
+            "dimension": len(embedding)
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Gagal membuat embedding: {str(e)}"
+        )
 
 
 @app.delete("/session/{session_id}")
