@@ -31,11 +31,9 @@ const PENGADILAN_OPTIONS = [
   'Pengadilan Pajak',
   'Mahkamah Agung',
   'Pengadilan Tata Usaha Negara',
-  'Pengadilan Tinggi',
-  'Pengadilan Negeri',
-  'Pengadilan Agama',
-  'Lainnya',
 ];
+const sanitizePengadilan = (items: string[]) =>
+  items.filter((item) => PENGADILAN_OPTIONS.includes(item));
 
 const JENIS_SENGKETA_OPTIONS = [
   'Transfer Pricing', 'BUT & Tax Treaty', 'Koreksi PPh Badan', 'Koreksi PPN',
@@ -65,7 +63,7 @@ const FilterModal = ({ isOpen, onClose, onApplyFilter, initialFilters }: FilterM
   const [selectedSengketa, setSelectedSengketa] = useState<string[]>(base.jenisSengketa);
   const [selectedUpaya, setSelectedUpaya] = useState<string[]>(base.upayaHukum);
   const [selectedPengadilan, setSelectedPengadilan] = useState<string[]>(
-    Array.isArray(base.pengadilan) ? base.pengadilan : []
+    sanitizePengadilan(Array.isArray(base.pengadilan) ? base.pengadilan : [])
   );
 
   useEffect(() => {
@@ -77,7 +75,9 @@ const FilterModal = ({ isOpen, onClose, onApplyFilter, initialFilters }: FilterM
     setSelectedPajak(b.jenisPajak);
     setSelectedSengketa(b.jenisSengketa);
     setSelectedUpaya(b.upayaHukum);
-    setSelectedPengadilan(Array.isArray(b.pengadilan) ? b.pengadilan : []);
+    setSelectedPengadilan(
+      sanitizePengadilan(Array.isArray(b.pengadilan) ? b.pengadilan : [])
+    );
   }, [isOpen, initialFilters]);
 
   const toggleFilter = (list: string[], setList: (v: string[]) => void, value: string) => {
@@ -94,7 +94,7 @@ const FilterModal = ({ isOpen, onClose, onApplyFilter, initialFilters }: FilterM
       jenisPajak: selectedPajak,
       jenisSengketa: selectedSengketa,
       upayaHukum: selectedUpaya,
-      pengadilan: selectedPengadilan,
+      pengadilan: sanitizePengadilan(selectedPengadilan),
       tahunPutusan,
       tahunPajak,
     });

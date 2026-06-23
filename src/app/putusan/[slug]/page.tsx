@@ -171,16 +171,15 @@ function getSengketaColor(s: string): {
 }
 
 function parseHakim(raw?: string | string[]): string[] {
+  const limitAnggota = (items: string[]) => items.filter(Boolean).slice(0, 2);
+
   if (!raw) return [];
-  if (Array.isArray(raw)) return raw.filter(Boolean);
+  if (Array.isArray(raw)) return limitAnggota(raw);
   try {
     const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) return parsed.filter(Boolean);
+    if (Array.isArray(parsed)) return limitAnggota(parsed);
   } catch {}
-  return raw
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
+  return limitAnggota(raw.split(",").map((s) => s.trim()));
 }
 
 function formatCurrency(val?: string | number): string {
